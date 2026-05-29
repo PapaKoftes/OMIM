@@ -1,0 +1,238 @@
+{
+  "main": {
+    "id": "b3bd0ecbf8ee71b9",
+    "type": "split",
+    "children": [
+      {
+        "id": "d7af8bbf71faeb14",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9a4cca790567587a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "What Is OMIM.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "What Is OMIM"
+            }
+          }
+        ]
+      },
+      {
+        "id": "7447179f262c45c6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "06c7fcc9e15ce214",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2e892bf7fd1c838c",
+    "type": "split",
+    "children": [
+      {
+        "id": "9ed930221168449d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "65580aa9baf6adbe",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "64f4693408ede86c",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "2001411893fe5fc6",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "26e46feca9b3e6e1",
+    "type": "split",
+    "children": [
+      {
+        "id": "87ecf4640cc69394",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c841c037c12ea3ef",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "5612b38d6f76cbd0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "9ba8e6cbd5fd5fe9",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "31f539e8e1810833",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "9b17e090776dfd89",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "65580aa9baf6adbe",
+  "lastOpenFiles": [
+    "10_IMPLEMENTATION/Hackathon_Execution_Order.md.tmp.1428.8a94198c0bcf",
+    "01_FOUNDATION/Vision_and_Scope.md.tmp.1428.0068961ae76e",
+    "10_IMPLEMENTATION/ML_Integration.md",
+    "10_IMPLEMENTATION/ML_Integration.md.tmp.1428.11ce28e508d4",
+    "09_BENCHMARKS/Benchmark_Tasks.md.tmp.1428.7467053826c9",
+    "09_BENCHMARKS/Benchmark_Tasks.md.tmp.1428.af0703e71556",
+    "04_ONTOLOGY/Manufacturing_Ontology.md.tmp.1428.9d88f9ddec0e",
+    "05_VALIDATION/Rule_Provenance.md.tmp.1428.e9e31b692a12",
+    "05_VALIDATION/Rule_Provenance.md.tmp.1428.5c2857cd918a",
+    "02_SCHEMA/Canonical_Sample_Schema.md.tmp.1428.d765e9959376",
+    "02_SCHEMA/Canonical_Sample_Schema.md.tmp.1428.6d9e4b4f9e7f",
+    "08_PROVENANCE_AND_CONFIDENCE/Provenance_System.md.tmp.1428.3bfb935c489f",
+    "What Is OMIM.md",
+    "10_IMPLEMENTATION/CI_Validation_Strategy.md",
+    "10_IMPLEMENTATION/Acceptance_Tests.md",
+    "10_IMPLEMENTATION/Definition_of_Done.md",
+    "10_IMPLEMENTATION/Hackathon_Execution_Order.md",
+    "10_IMPLEMENTATION/Vertical_Slice_Execution.md",
+    "09_BENCHMARKS/Benchmark_Reproducibility.md",
+    "09_BENCHMARKS/Train_Test_Policy.md",
+    "09_BENCHMARKS/Evaluation_Metrics.md",
+    "09_BENCHMARKS/Benchmark_Tasks.md",
+    "08_PROVENANCE_AND_CONFIDENCE/Inference_Transparency.md",
+    "08_PROVENANCE_AND_CONFIDENCE/Evidence_Requirements.md",
+    "08_PROVENANCE_AND_CONFIDENCE/Confidence_Model.md",
+    "08_PROVENANCE_AND_CONFIDENCE/Provenance_System.md",
+    "07_SYNTHETIC_GENERATION/Sample_Generation_Flow.md",
+    "07_SYNTHETIC_GENERATION/Realism_Constraints.md",
+    "07_SYNTHETIC_GENERATION/Dataset_Distribution_Policy.md",
+    "07_SYNTHETIC_GENERATION/Constraint_Grammar.md",
+    "07_SYNTHETIC_GENERATION/Synthetic_Generation_System.md",
+    "06_REAL_WORLD_GROUNDING/Real_DXF_Corpus_Sources.md",
+    "06_REAL_WORLD_GROUNDING/Manufacturing_Conventions.md",
+    "06_REAL_WORLD_GROUNDING/Panel_Dimension_Standards.md",
+    "06_REAL_WORLD_GROUNDING/Tooling_Catalog_References.md",
+    "06_REAL_WORLD_GROUNDING/Hardware_System_References.md"
+  ]
+}

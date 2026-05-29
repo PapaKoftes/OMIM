@@ -1,0 +1,49 @@
+# Manufacturing Constraints — Panel CNC
+# These define the feasibility envelope for panel machining.
+# Version: v0.1.0
+
+constraints:
+  - id: MFG-001
+    name: Minimum Edge Distance
+    description: "Drill holes must maintain minimum distance from panel edge"
+    default_threshold_mm: 8.0
+    severity: ERROR
+
+  - id: MFG-002
+    name: Minimum Hole Spacing
+    description: "Center-to-center distance between adjacent holes"
+    default_threshold_mm: 5.0
+    severity: ERROR
+
+  - id: MFG-009
+    name: Minimum Panel Dimensions
+    description: "Panel must be large enough for CNC fixturing"
+    default_threshold_mm: 50.0
+    severity: WARNING
+
+  - id: MFG-011
+    name: Drill Diameter Range
+    description: "Hole diameter must be within available tooling range"
+    min_mm: 3.0
+    max_mm: 35.0
+    severity: ERROR
+
+  - id: GEO-001
+    name: Degenerate Circle
+    description: "Circle with zero or near-zero radius"
+    severity: ERROR
+
+  - id: GEO-002
+    name: Unclosed Cut Contour
+    description: "Polyline on cut layer that is not closed"
+    severity: WARNING
+
+  - id: GEO-004
+    name: Overlapping Geometry
+    description: "Two circles occupy the same space (duplicate drill holes)"
+    severity: WARNING
+
+  - id: GEO-007
+    name: Outside Panel Bounds
+    description: "Geometry extends beyond detected panel boundary"
+    severity: ERROR

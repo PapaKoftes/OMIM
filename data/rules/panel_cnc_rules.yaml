@@ -1,0 +1,23 @@
+# Panel CNC Manufacturing Rules
+# These override default thresholds for specific material/machine combos.
+# Version: v0.1.0
+
+ruleset:
+  name: "Standard Panel CNC"
+  version: "v0.1.0"
+  material: "MDF/Plywood/Melamine 16-25mm"
+
+thresholds:
+  min_edge_distance_mm: 8.0
+  min_hole_spacing_mm: 5.0
+  min_drill_diameter_mm: 3.0
+  max_drill_diameter_mm: 35.0
+  min_panel_width_mm: 50.0
+  min_panel_height_mm: 50.0
+  max_panel_width_mm: 2800.0
+  max_panel_height_mm: 2070.0
+
+# Material-specific
+material_defaults:
+  thickness_mm: 18.0
+  max_blind_hole_depth_ratio: 0.75  # Max depth as fraction of thickness

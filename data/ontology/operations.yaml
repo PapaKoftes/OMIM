@@ -1,0 +1,23 @@
+# CNC Operations Ontology — Panel Manufacturing
+# Version: v0.1.0
+
+operations:
+  - name: DRILL_THROUGH
+    tool_type: drill_bit
+    description: "Through-hole drilling (full panel thickness)"
+
+  - name: DRILL_BLIND
+    tool_type: drill_bit
+    description: "Blind hole drilling (partial depth)"
+
+  - name: ROUTE_CONTOUR
+    tool_type: router_bit
+    description: "Contour routing along a profile path"
+
+  - name: ROUTE_POCKET
+    tool_type: router_bit
+    description: "Pocket routing — area material removal"
+
+  - name: ENGRAVE
+    tool_type: engraving_bit
+    description: "Surface engraving / marking (no material removal at depth)"

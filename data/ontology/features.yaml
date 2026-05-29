@@ -1,0 +1,61 @@
+# Manufacturing Feature Ontology — Panel CNC Machining
+# Domain: Cabinetry (MDF, plywood, melamine)
+# Version: v0.1.0
+
+features:
+  - name: SHELF_PIN_HOLE
+    category: fastener
+    description: "5mm hole for shelf support pins (Bodenträger)"
+    typical_diameter_mm: [4.8, 5.2]
+    typical_depth_mm: [10.0, 13.0]
+    operations: [DRILL_THROUGH, DRILL_BLIND]
+
+  - name: DOWEL_HOLE
+    category: fastener
+    description: "8mm hole for wooden dowel joints"
+    typical_diameter_mm: [7.8, 8.2]
+    typical_depth_mm: [10.0, 30.0]
+    operations: [DRILL_BLIND]
+
+  - name: EURO_SCREW_HOLE
+    category: fastener
+    description: "15mm hole for Euroschraube / confirmat screws"
+    typical_diameter_mm: [14.5, 15.5]
+    typical_depth_mm: [10.0, 12.0]
+    operations: [DRILL_BLIND]
+
+  - name: SYSTEM_HOLE_20MM
+    category: system
+    description: "20mm system hole for 32mm system drilling"
+    typical_diameter_mm: [19.5, 20.5]
+    typical_depth_mm: [10.0, 13.0]
+    operations: [DRILL_BLIND]
+
+  - name: CABLE_GROMMET_HOLE
+    category: functional
+    description: "25mm cable management grommet hole"
+    typical_diameter_mm: [25.0, 26.0]
+    typical_depth_mm: [18.0, 19.0]
+    operations: [DRILL_THROUGH]
+
+  - name: HINGE_CUP_HOLE
+    category: hardware
+    description: "35mm cup hole for European concealed hinges"
+    typical_diameter_mm: [34.5, 35.5]
+    typical_depth_mm: [11.5, 13.5]
+    operations: [DRILL_BLIND]
+
+  - name: GENERIC_DRILL_HOLE
+    category: generic
+    description: "Unclassified drill hole — diameter does not match known feature"
+    operations: [DRILL_THROUGH, DRILL_BLIND]
+
+  - name: CONTOUR_CUT
+    category: machining
+    description: "Outer or inner contour cut / profile routing"
+    operations: [ROUTE_CONTOUR]
+
+  - name: POCKET_ROUT
+    category: machining
+    description: "Pocket routing — material removal within a closed contour"
+    operations: [ROUTE_POCKET]

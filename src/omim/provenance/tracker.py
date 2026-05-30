@@ -6,7 +6,7 @@ Spec: 08_PROVENANCE_AND_CONFIDENCE/Provenance_System.md
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from omim.provenance.models import (
     EvidenceItem,
@@ -57,12 +57,12 @@ class ProvenanceTracker:
         self._duration_ms: float | None = None
 
     def __enter__(self) -> ProvenanceTracker:
-        self._start_time = datetime.now(timezone.utc)
+        self._start_time = datetime.now(UTC)
         return self
 
     def __exit__(self, *args) -> None:
         if self._start_time:
-            elapsed = datetime.now(timezone.utc) - self._start_time
+            elapsed = datetime.now(UTC) - self._start_time
             self._duration_ms = elapsed.total_seconds() * 1000
 
     def create_record(
@@ -79,7 +79,7 @@ class ProvenanceTracker:
 
         record = ProvenanceRecord(
             record_id=str(uuid.uuid4()),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             generator="omim",
             generator_version=OMIM_VERSION,
             pipeline_stage=self.stage,

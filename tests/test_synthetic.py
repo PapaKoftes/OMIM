@@ -10,8 +10,8 @@ import ezdxf
 import pytest
 
 from omim.export.dataset_exporter import check_dataset_consistency, validate_sample_schema
-from omim.parser.dxf_parser import DXFParser
 from omim.graph.builder import MGGBuilder
+from omim.parser.dxf_parser import DXFParser
 from omim.semantic.classifier import FeatureClassifier, SemanticPreconditionError
 from omim.synthetic.generator import PanelGenerator
 from omim.synthetic.models import PanelGeneratorConfig

@@ -7,7 +7,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, model_validator
 
 
-class InferenceMethod(str, Enum):
+class InferenceMethod(str, Enum):  # noqa: UP042 — StrEnum changes str()/format output
     """Authority levels: DETERMINISTIC=L1-3, HEURISTIC=L4, SEMANTIC=L5, ML_GNN=L6."""
 
     DETERMINISTIC = "deterministic"
@@ -30,14 +30,14 @@ AUTHORITY_LEVELS = {
 }
 
 
-class ReviewStatus(str, Enum):
+class ReviewStatus(str, Enum):  # noqa: UP042 — StrEnum changes str()/format output
     UNREVIEWED = "unreviewed"
     AUTO_VALIDATED = "auto_validated"
     EXPERT_REVIEWED = "expert_reviewed"
     FLAGGED = "flagged"
 
 
-class EvidenceType(str, Enum):
+class EvidenceType(str, Enum):  # noqa: UP042 — StrEnum changes str()/format output
     GEOMETRIC_MEASUREMENT = "geometric_measurement"
     RULE_MATCH = "rule_match"
     PATTERN_MATCH = "pattern_match"

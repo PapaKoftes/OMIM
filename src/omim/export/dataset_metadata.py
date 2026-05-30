@@ -11,7 +11,7 @@ Invariants (validated here when the data is present):
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 SCHEMA = "omim-dataset-metadata-v0.1.0"
@@ -29,7 +29,7 @@ DEFAULT_GROUNDING_NOTE = (
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def build_dataset_metadata(config: dict, statistics: dict) -> dict:

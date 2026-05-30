@@ -9,13 +9,12 @@ from pydantic import BaseModel, Field
 
 from omim.provenance.models import ProvenanceRecord
 
-
 # ---------------------------------------------------------------------------
 # Edge types (from MGG Schema relationship table)
 # ---------------------------------------------------------------------------
 
 
-class EdgeType(str, Enum):
+class EdgeType(str, Enum):  # noqa: UP042 — StrEnum changes str()/format output
     """Relationship types between graph nodes."""
 
     CONTAINS = "CONTAINS"  # panel contour → geometry (Shapely containment)

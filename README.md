@@ -34,12 +34,45 @@ omim validate panel.dxf
 # Generate a synthetic dataset (standards-grounded, validator-gated)
 omim generate ./data/synthetic -n 1000 --seed 42 --invalid-ratio 0.30
 
-# Start API server
+# Verify a dataset/sample (schema + graph integrity)
+omim verify ./data/synthetic
+
+# Run the benchmark suite (BENCH-001..004) against a dataset
+omim benchmark ./data/synthetic --split test
+
+# Ground generation in a real DXF corpus (catalog-conformance check)
+omim ingest ./real_dxfs
+omim ground ./real_dxfs --profile-out grounding.json
+
+# Train / predict with the optional GNN layer  (pip install 'omim[ml]')
+omim train --dataset ./data/synthetic/samples --checkpoint-dir ./ckpt
+omim predict panel.dxf --feature-checkpoint ./ckpt/feature_gnn.pt
+
+# Start API server (8 endpoints incl. /analyze, /annotate, /generate, /ontology, /rules)
 omim serve
 
 # Run tests
 pytest
 ```
+
+## Layered architecture (authority hierarchy)
+
+OMIM enforces a strict trust hierarchy — lower layers never override higher ones:
+
+| Level | Layer | Authority | Module |
+|---|---|---|---|
+| 1–2 | Geometry / topology (Shapely) | **Absolute** | `parser`, `graph` |
+| 3 | Standards & rules (20 GEO/MFG rules) | High, deterministic | `validation` |
+| 4 | Deterministic heuristics | Medium | `semantic` (diameter/pattern) |
+| 5 | Semantic inference | Low, confidence-bounded | `semantic` |
+| 6 | ML (GNN) / LLM | **Advisory only** | `ml`, `semantic.llm_annotator` |
+
+Every node, edge, rule result, and annotation carries a `ProvenanceRecord`
+(inference method, confidence, evidence) — `provenance`. Integrity is checked by
+`omim.integrity` (`check_graph_integrity`, `check_ontology_consistency`,
+`check_dataset_consistency`). Benchmarks live in `omim.benchmarks`, real-corpus
+grounding in `omim.corpus`, and the optional GNN layer in `omim.ml` (degrades
+gracefully when `torch`/`torch_geometric` are absent).
 
 ## Synthetic Dataset Generation
 

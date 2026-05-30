@@ -1,8 +1,8 @@
 """Tests for the Manufacturing Geometry Graph."""
 
 from omim.graph.builder import MGGBuilder
-from omim.graph.models import EdgeType, FeatureNode, GraphMetadata
 from omim.graph.mgg import ManufacturingGeometryGraph
+from omim.graph.models import EdgeType, FeatureNode, GraphMetadata
 from omim.parser.models import RawGeometry
 
 

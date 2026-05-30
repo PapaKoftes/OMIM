@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 import pytest
 
 from omim.graph.builder import MGGBuilder
-from omim.graph.models import GraphMetadata
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.parser.models import PanelBoundary, RawEntity, RawGeometry
-
 
 DATA_DIR = Path(__file__).parent.parent / "data"
 FIXTURES_DIR = DATA_DIR / "fixtures"

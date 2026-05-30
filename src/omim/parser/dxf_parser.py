@@ -5,7 +5,7 @@ import logging
 import math
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import ezdxf
@@ -464,7 +464,10 @@ class DXFParser:
             warnings.append(
                 ParseWarning(
                     warning_code="annotation_only",
-                    message="No geometric entities found (LINE/CIRCLE/ARC/POLYLINE). File may be annotation-only.",
+                    message=(
+                        "No geometric entities found (LINE/CIRCLE/ARC/POLYLINE). "
+                        "File may be annotation-only."
+                    ),
                 )
             )
 
@@ -502,7 +505,7 @@ class DXFParser:
                 )
                 panel_boundary_inferred = True
 
-        parse_timestamp = datetime.now(timezone.utc).isoformat()
+        parse_timestamp = datetime.now(UTC).isoformat()
 
         geometry = RawGeometry(
             source_file=str(filepath),

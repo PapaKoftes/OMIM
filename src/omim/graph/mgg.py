@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
@@ -23,6 +24,9 @@ from omim.graph.models import (
     OperationNode,
     RelationshipEdge,
 )
+
+if TYPE_CHECKING:
+    from omim.graph.query import MGGQuery
 
 
 class ManufacturingGeometryGraph:
@@ -139,7 +143,7 @@ class ManufacturingGeometryGraph:
     # Queries
     # ------------------------------------------------------------------
 
-    def query(self) -> "MGGQuery":
+    def query(self) -> MGGQuery:
         """Return an MGGQuery helper bound to this graph."""
         from omim.graph.query import MGGQuery
 
@@ -177,14 +181,30 @@ class ManufacturingGeometryGraph:
         return result
 
     def violations_for_feature(self, feature_node_id: str) -> list[tuple[str, dict]]:
-        """Return constraint nodes connected via VIOLATES edges."""
+        """Return constraint nodes connected to this node via APPLIES_TO edges.
+
+        Constraints are linked to the geometry/feature they affect with an
+        ``APPLIES_TO`` edge (constraint -> node). We therefore inspect both
+        directions to find constraint nodes touching *feature_node_id*.
+        """
         result = []
-        for succ in self._g.successors(feature_node_id):
-            for _key, data in self._g[feature_node_id][succ].items():
-                if data.get("edge_type") == EdgeType.VIOLATES.value:
-                    node_data = self._g.nodes[succ]
-                    if node_data.get("node_type") == "constraint":
-                        result.append((succ, dict(node_data)))
+        seen: set[str] = set()
+        neighbors = set(self._g.successors(feature_node_id)) | set(
+            self._g.predecessors(feature_node_id)
+        )
+        for other in neighbors:
+            node_data = self._g.nodes[other]
+            if node_data.get("node_type") != "constraint" or other in seen:
+                continue
+            # Confirm there is an APPLIES_TO edge in either direction.
+            edges = []
+            if self._g.has_edge(other, feature_node_id):
+                edges += list(self._g[other][feature_node_id].values())
+            if self._g.has_edge(feature_node_id, other):
+                edges += list(self._g[feature_node_id][other].values())
+            if any(e.get("edge_type") == EdgeType.APPLIES_TO.value for e in edges):
+                result.append((other, dict(node_data)))
+                seen.add(other)
         return result
 
     # ------------------------------------------------------------------

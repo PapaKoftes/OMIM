@@ -6,7 +6,7 @@ graph queries without exposing the raw NetworkX API.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from omim.graph.models import EdgeType
 
@@ -49,7 +49,10 @@ class MGGQuery:
     # ------------------------------------------------------------------
 
     def get_by_entity_type(self, entity_type: str) -> list[tuple[str, dict]]:
-        """Return geometry nodes whose ``geometry_type`` matches *entity_type* (case-insensitive)."""
+        """Return geometry nodes whose ``geometry_type`` matches *entity_type*.
+
+        Matching is case-insensitive.
+        """
         et = entity_type.lower()
         return [
             (nid, data)

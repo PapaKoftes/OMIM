@@ -7,7 +7,10 @@ from omim.api.routes import router
 
 app = FastAPI(
     title="OMIM — Open Manufacturing Intelligence Middleware",
-    description="Deterministic manufacturing geometry analysis with provenance-tracked semantic inference",
+    description=(
+        "Deterministic manufacturing geometry analysis with "
+        "provenance-tracked semantic inference"
+    ),
     version="0.1.0",
 )
 

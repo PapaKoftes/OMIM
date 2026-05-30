@@ -2,8 +2,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from omim.parser.dxf_parser import DXFParser, _infer_layer_type
 
 

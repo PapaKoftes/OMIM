@@ -14,7 +14,6 @@ from typing import Any
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.validation.models import RuleResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -329,7 +328,9 @@ def check_shelf_pin_grid(mgg: ManufacturingGeometryGraph, **params: Any) -> list
 # ---------------------------------------------------------------------------
 
 
-def check_hinge_cup_edge_distance(mgg: ManufacturingGeometryGraph, **params: Any) -> list[RuleResult]:
+def check_hinge_cup_edge_distance(
+    mgg: ManufacturingGeometryGraph, **params: Any
+) -> list[RuleResult]:
     """MFG-006: 35mm circles at 22.5mm +/- 1mm from edge. confidence_ceiling=0.90."""
     t0 = time.perf_counter()
     target_diameter = params.get("target_diameter_mm", 35.0)
@@ -437,7 +438,8 @@ def check_blind_feature_depth(mgg: ManufacturingGeometryGraph, **params: Any) ->
                 severity="WARNING",
                 message=(
                     f"Feature {nid} depth {depth:.1f} mm exceeds "
-                    f"{max_depth_ratio * 100:.0f}% of {panel_thickness} mm thickness ({max_depth:.1f} mm)"
+                    f"{max_depth_ratio * 100:.0f}% of {panel_thickness} mm "
+                    f"thickness ({max_depth:.1f} mm)"
                 ),
                 confidence=0.70,
                 affected_node_ids=[nid],

@@ -1,0 +1,373 @@
+{
+  "$schema": "omim-grounding-profile-v0.1.0",
+  "profile_version": "v0.1.0",
+  "trust_tier": 1,
+  "source": {
+    "kind": "catalog_derived",
+    "note": "Seeded from manufacturer catalogs + EN/DIN standards; no real corpus ingested. Replace with a Tier 2 profile once a real DXF corpus is available.",
+    "references": [
+      "Blum CLIP top item 70.1900.AC; Hettich Intermat; Grass Tiomos (industry-standard 35mm cup)",
+      "DIN 7 Part 1; DIN 68863 (10mm heavy-duty dowel)",
+      "DIN 7 Part 1; DIN 68863 (8mm/10mm dowel)",
+      "H\u00e4fele Confirmat; DIN 68871 (7mm body / 5mm pilot)",
+      "H\u00e4fele Rafix cam fitting (\u00f815.0mm x 12.5mm deep)",
+      "H\u00e4fele System 32 / Rasterbohr; DIN 68840; Cabinet_Standards.md 32mm system (MFG-005)"
+    ]
+  },
+  "diameter": {
+    "stats": {
+      "n": 1000,
+      "min": 5.0,
+      "max": 35.0,
+      "mean": 8.63,
+      "stdev": null,
+      "median": 5.0,
+      "p05": 5.0,
+      "p95": 35.0
+    },
+    "clusters": {
+      "5.0": {
+        "cluster_center_mm": 5.0,
+        "feature_class": "SHELF_PIN_HOLE",
+        "count": 550,
+        "frequency": 0.55,
+        "measured_mean_mm": 5.0,
+        "measured_stdev_mm": 0.0,
+        "mean_deviation_mm": 0.0,
+        "max_abs_deviation_mm": 0.0
+      },
+      "7.0": {
+        "cluster_center_mm": 7.0,
+        "feature_class": "CONFIRMAT_HOLE",
+        "count": 120,
+        "frequency": 0.12,
+        "measured_mean_mm": 7.0,
+        "measured_stdev_mm": 0.0,
+        "mean_deviation_mm": 0.0,
+        "max_abs_deviation_mm": 0.0
+      },
+      "8.0": {
+        "cluster_center_mm": 8.0,
+        "feature_class": "DOWEL_HOLE",
+        "count": 180,
+        "frequency": 0.18,
+        "measured_mean_mm": 8.0,
+        "measured_stdev_mm": 0.0,
+        "mean_deviation_mm": 0.0,
+        "max_abs_deviation_mm": 0.0
+      },
+      "10.0": {
+        "cluster_center_mm": 10.0,
+        "feature_class": "DOWEL_HOLE_HEAVY",
+        "count": 50,
+        "frequency": 0.05,
+        "measured_mean_mm": 10.0,
+        "measured_stdev_mm": 0.0,
+        "mean_deviation_mm": 0.0,
+        "max_abs_deviation_mm": 0.0
+      },
+      "15.0": {
+        "cluster_center_mm": 15.0,
+        "feature_class": "CAM_HOLE",
+        "count": 20,
+        "frequency": 0.02,
+        "measured_mean_mm": 15.0,
+        "measured_stdev_mm": 0.0,
+        "mean_deviation_mm": 0.0,
+        "max_abs_deviation_mm": 0.0
+      },
+      "35.0": {
+        "cluster_center_mm": 35.0,
+        "feature_class": "HINGE_CUP_HOLE",
+        "count": 80,
+        "frequency": 0.08,
+        "measured_mean_mm": 35.0,
+        "measured_stdev_mm": 0.0,
+        "mean_deviation_mm": 0.0,
+        "max_abs_deviation_mm": 0.0
+      }
+    }
+  },
+  "panel_width": {
+    "stats": {
+      "n": 9,
+      "min": 300.0,
+      "max": 1200.0,
+      "mean": 620.0,
+      "stdev": null,
+      "median": 600.0,
+      "p05": 300.0,
+      "p95": 1200.0
+    },
+    "values": [
+      300.0,
+      400.0,
+      450.0,
+      500.0,
+      600.0,
+      800.0,
+      900.0,
+      1000.0,
+      1200.0
+    ],
+    "weights": [
+      0.1,
+      0.1,
+      0.1,
+      0.15,
+      0.25,
+      0.1,
+      0.1,
+      0.05,
+      0.05
+    ]
+  },
+  "panel_height": {
+    "stats": {
+      "n": 7,
+      "min": 300.0,
+      "max": 2200.0,
+      "mean": 1147.0,
+      "stdev": null,
+      "median": 900.0,
+      "p05": 300.0,
+      "p95": 2200.0
+    },
+    "values": [
+      300.0,
+      600.0,
+      720.0,
+      900.0,
+      1980.0,
+      2100.0,
+      2200.0
+    ],
+    "weights": [
+      0.1,
+      0.2,
+      0.25,
+      0.1,
+      0.15,
+      0.1,
+      0.1
+    ]
+  },
+  "panel_thickness": {
+    "stats": {
+      "n": 16,
+      "min": 3.0,
+      "max": 38.0,
+      "mean": 17.3336,
+      "stdev": null,
+      "median": 16.0,
+      "p05": 3.0,
+      "p95": 38.0
+    },
+    "values": [
+      3.0,
+      4.0,
+      6.0,
+      8.0,
+      9.0,
+      10.0,
+      12.0,
+      15.0,
+      16.0,
+      18.0,
+      19.0,
+      22.0,
+      25.0,
+      28.0,
+      30.0,
+      38.0
+    ],
+    "weights": [
+      0.0222,
+      0.0222,
+      0.0222,
+      0.0222,
+      0.0222,
+      0.0222,
+      0.0222,
+      0.0222,
+      0.1333,
+      0.4444,
+      0.1333,
+      0.0222,
+      0.0222,
+      0.0222,
+      0.0222,
+      0.0222
+    ],
+    "default_mm": 18.0
+  },
+  "edge_setback": {
+    "stats": {
+      "n": 1000,
+      "min": 8.0,
+      "max": 37.0,
+      "mean": 22.5,
+      "stdev": 4.8333,
+      "median": 22.5,
+      "p05": 8.0,
+      "p95": 37.0
+    },
+    "catalog_setbacks_mm": [
+      12.0,
+      22.5,
+      37.0
+    ],
+    "by_feature": {
+      "SHELF_PIN_HOLE": {
+        "setback_mm": 37.0,
+        "tolerance_mm": 1.0
+      },
+      "CONFIRMAT_HOLE": {
+        "setback_mm": 12.0,
+        "tolerance_mm": 5.0
+      },
+      "HINGE_CUP_HOLE": {
+        "setback_mm": 22.5,
+        "tolerance_mm": 1.0
+      }
+    }
+  },
+  "pairwise_spacing": {
+    "stats": {
+      "n": 1000,
+      "min": 31.5,
+      "max": 32.5,
+      "mean": 32.0,
+      "stdev": 0.1667,
+      "median": 32.0,
+      "p05": 31.5,
+      "p95": 32.5
+    },
+    "grid_pitch_mm": 32.0,
+    "note": "System 32 grid pitch (H\u00e4fele / Blum / Hettich / Grass)."
+  },
+  "hole_count": {
+    "by_panel_type": {
+      "side_panel": {
+        "min": 8,
+        "max": 28,
+        "typical": 14,
+        "poisson_lambda": 14.0
+      },
+      "shelf": {
+        "min": 0,
+        "max": 4,
+        "typical": 2,
+        "poisson_lambda": 2.0
+      },
+      "door": {
+        "min": 2,
+        "max": 2,
+        "typical": 2,
+        "poisson_lambda": 2.0
+      },
+      "bottom_top": {
+        "min": 4,
+        "max": 8,
+        "typical": 6,
+        "poisson_lambda": 6.0
+      },
+      "back_panel": {
+        "min": 0,
+        "max": 0,
+        "typical": 0,
+        "poisson_lambda": 0.0
+      },
+      "generic": {
+        "min": 0,
+        "max": 40,
+        "typical": 8,
+        "poisson_lambda": 8.0
+      }
+    },
+    "max_realistic": 40
+  },
+  "catalog_references": {
+    "SHELF_PIN_HOLE": {
+      "description": "System 32 shelf support hole",
+      "diameter_mm": 5.0,
+      "diameter_tol_mm": 0.5,
+      "depth_mm": 15.0,
+      "depth_tol_mm": 1.0,
+      "setback_mm": 37.0,
+      "setback_tol_mm": 1.0,
+      "spacing_mm": 32.0,
+      "spacing_tol_mm": 0.5,
+      "cluster_center_mm": 5.0,
+      "source": "H\u00e4fele System 32 / Rasterbohr; DIN 68840; Cabinet_Standards.md 32mm system (MFG-005)"
+    },
+    "CONFIRMAT_HOLE": {
+      "description": "Confirmat / Euro screw body bore",
+      "diameter_mm": 7.0,
+      "diameter_tol_mm": 0.2,
+      "pilot_diameter_mm": 5.0,
+      "pilot_tol_mm": 0.1,
+      "depth_mm": 60.0,
+      "depth_tol_mm": 10.0,
+      "setback_mm": 12.0,
+      "setback_tol_mm": 5.0,
+      "spacing_mm": null,
+      "cluster_center_mm": 7.0,
+      "source": "H\u00e4fele Confirmat; DIN 68871 (7mm body / 5mm pilot)"
+    },
+    "DOWEL_HOLE": {
+      "description": "DIN 7 cylindrical dowel pin hole (furniture standard)",
+      "diameter_mm": 8.0,
+      "diameter_tol_mm": 0.1,
+      "alt_diameters_mm": [
+        8.0,
+        10.0
+      ],
+      "depth_mm": 17.0,
+      "depth_tol_mm": 2.0,
+      "setback_mm": null,
+      "setback_tol_mm": null,
+      "spacing_mm": 32.0,
+      "spacing_tol_mm": 1.0,
+      "cluster_center_mm": 8.0,
+      "source": "DIN 7 Part 1; DIN 68863 (8mm/10mm dowel)"
+    },
+    "DOWEL_HOLE_HEAVY": {
+      "description": "DIN 7 heavy-duty dowel pin hole (10mm)",
+      "diameter_mm": 10.0,
+      "diameter_tol_mm": 0.1,
+      "depth_mm": 17.0,
+      "depth_tol_mm": 2.0,
+      "setback_mm": null,
+      "setback_tol_mm": null,
+      "spacing_mm": 32.0,
+      "spacing_tol_mm": 1.0,
+      "cluster_center_mm": 10.0,
+      "source": "DIN 7 Part 1; DIN 68863 (10mm heavy-duty dowel)"
+    },
+    "CAM_HOLE": {
+      "description": "Rafix cam fitting bore",
+      "diameter_mm": 15.0,
+      "diameter_tol_mm": 0.3,
+      "depth_mm": 12.5,
+      "depth_tol_mm": 0.5,
+      "setback_mm": null,
+      "setback_tol_mm": null,
+      "spacing_mm": null,
+      "cluster_center_mm": 15.0,
+      "source": "H\u00e4fele Rafix cam fitting (\u00f815.0mm x 12.5mm deep)"
+    },
+    "HINGE_CUP_HOLE": {
+      "description": "European concealed hinge cup bore",
+      "diameter_mm": 35.0,
+      "diameter_tol_mm": 0.5,
+      "depth_mm": 12.5,
+      "depth_tol_mm": 0.5,
+      "setback_mm": 22.5,
+      "setback_tol_mm": 1.0,
+      "spacing_mm": null,
+      "cluster_center_mm": 35.0,
+      "source": "Blum CLIP top item 70.1900.AC; Hettich Intermat; Grass Tiomos (industry-standard 35mm cup)"
+    }
+  }
+}

@@ -1,6 +1,5 @@
 """Export utilities — MGG to various formats and canonical dataset samples."""
 
-from omim.export.exporter import export_mgg_json, export_validation_report, export_cytoscape
 from omim.export.dataset_exporter import (
     BatchExportError,
     DatasetExporter,
@@ -14,6 +13,7 @@ from omim.export.dataset_exporter import (
     validate_sample_schema,
 )
 from omim.export.dataset_metadata import build_dataset_metadata
+from omim.export.exporter import export_cytoscape, export_mgg_json, export_validation_report
 
 __all__ = [
     # Existing MGG/format exporters

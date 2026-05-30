@@ -1,0 +1,34 @@
+# Version control
+.git
+.gitignore
+
+# Python caches / build artifacts
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+*.egg-info
+build/
+dist/
+.venv
+venv/
+
+# Generated synthetic datasets (large; not part of the image)
+data/synthetic
+
+# Node / frontend build artifacts (frontend image builds these itself)
+node_modules
+frontend/node_modules
+frontend/dist
+
+# Tests, docs, dev tooling
+tests
+docs/_archive
+
+# Local env / editor
+.env
+.vscode
+.idea
+*.log

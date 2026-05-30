@@ -108,7 +108,7 @@ class ExportIOError(Exception):
 class BatchExportError(Exception):
     """Raised when one or more samples in a batch fail to export."""
 
-    def __init__(self, results: list["ExportResult"]) -> None:
+    def __init__(self, results: list[ExportResult]) -> None:
         self.results = results
         failed = [r for r in results if not r.success]
         super().__init__(

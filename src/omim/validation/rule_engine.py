@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.graph.models import ConstraintNode, EdgeType
@@ -134,7 +134,7 @@ class RuleEngine:
 
         # --- Provenance ---
         report_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         provenance = ProvenanceRecord(
             record_id=str(uuid.uuid4()),

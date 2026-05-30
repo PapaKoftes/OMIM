@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.ontology.loader import Ontology
@@ -215,7 +215,7 @@ class FeatureClassifier:
         result = SemanticAnnotations(
             annotation_id=f"sa-{uuid.uuid4().hex[:12]}",
             graph_id=mgg.metadata.graph_id,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             ontology_version=ontology_version,
             feature_annotations=feature_annotations,
             operation_annotations=operation_annotations,
@@ -284,7 +284,6 @@ class FeatureClassifier:
         geom_type = data.get("geometry_type", "")
         layer = data.get("layer", "")
         diameter = data.get("diameter_mm")
-        entity_type = data.get("entity_type", geom_type).upper() if data.get("entity_type") else geom_type.upper()
         is_closed = data.get("is_closed", False)
         inferred_layer_type = data.get("inferred_layer_type", "unknown")
 
@@ -294,7 +293,11 @@ class FeatureClassifier:
         # ---------------------------------------------------------------
         # Priority 1: diameter == 35mm +/- 1mm AND layer contains "HINGE"
         # ---------------------------------------------------------------
-        if diameter is not None and _is_close(diameter, 35.0, 1.0) and _layer_contains(layer, "HINGE"):
+        if (
+            diameter is not None
+            and _is_close(diameter, 35.0, 1.0)
+            and _layer_contains(layer, "HINGE")
+        ):
             return self._make_annotation(
                 node_id=node_id,
                 feature_class="HINGE_CUP_HOLE",
@@ -366,7 +369,11 @@ class FeatureClassifier:
         # ---------------------------------------------------------------
         # Priority 4: diameter == 7mm +/- 0.5mm AND layer contains "CONFIRMAT"
         # ---------------------------------------------------------------
-        if diameter is not None and _is_close(diameter, 7.0, 0.5) and _layer_contains(layer, "CONFIRMAT"):
+        if (
+            diameter is not None
+            and _is_close(diameter, 7.0, 0.5)
+            and _layer_contains(layer, "CONFIRMAT")
+        ):
             return self._make_annotation(
                 node_id=node_id,
                 feature_class="CONFIRMAT_HOLE",
@@ -383,6 +390,36 @@ class FeatureClassifier:
                 }],
                 inference_method="hardware_spec",
                 rule="P4: 7mm + CONFIRMAT layer",
+            )
+
+        # ---------------------------------------------------------------
+        # Priority 4b: diameter == 7mm +/- 0.3mm WITHOUT layer keyword.
+        # Per Feature_Taxonomy.md, CONFIRMAT_HOLE primary evidence is the 7mm
+        # body diameter (Häfele/DIN 68871). Real DXFs place these on a generic
+        # DRILL layer, so diameter alone yields a heuristic-confidence match
+        # (material_heuristic ceiling 0.70) with THROUGH_HOLE as the alternative.
+        # ---------------------------------------------------------------
+        if diameter is not None and _is_close(diameter, 7.0, 0.3):
+            return self._make_annotation(
+                node_id=node_id,
+                feature_class="CONFIRMAT_HOLE",
+                confidence=0.70,
+                evidence=[{
+                    "type": "diameter_match",
+                    "diameter_mm": diameter,
+                    "target_mm": 7.0,
+                    "tolerance_mm": 0.3,
+                    "note": "diameter-only; no CONFIRMAT layer keyword",
+                }],
+                inference_method="material_heuristic",
+                rule="P4b: 7mm body diameter (no layer confirmation)",
+                alternatives=[
+                    AlternativeHypothesis(
+                        feature_class="THROUGH_HOLE",
+                        confidence=0.50,
+                        reason=f"Could be a generic through hole at {diameter:.1f}mm",
+                    ),
+                ],
             )
 
         # ---------------------------------------------------------------
@@ -520,10 +557,8 @@ class FeatureClassifier:
             and inferred_layer_type in ("cut", "border")
             and not data.get("is_outer_boundary")
         ):
-            # Check if this is likely an outer contour by area
-            area = data.get("area_mm2")
-            # Heuristic: large closed contours on cut layers are profile cuts
-            # But without containment analysis, we fall through to P10
+            # Heuristic: large closed contours on cut layers are profile cuts,
+            # but without containment analysis we fall through to P10 (cutout).
             pass
 
         # ---------------------------------------------------------------
@@ -560,7 +595,10 @@ class FeatureClassifier:
             confidence=0.0,
             evidence=[{
                 "type": "no_match",
-                "detail": f"No classification rule matched for geometry_type={geom_type}, layer={layer}",
+                "detail": (
+                    f"No classification rule matched for "
+                    f"geometry_type={geom_type}, layer={layer}"
+                ),
             }],
             inference_method="none",
             rule="P11: No match",

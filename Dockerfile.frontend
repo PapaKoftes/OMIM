@@ -1,0 +1,29 @@
+# OMIM frontend — Vite/React build served as static files by nginx.
+#
+# Build context is the `frontend/` directory (see docker-compose.yml).
+#
+# Stage 1: build the static bundle with the Node toolchain.
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+# Install dependencies first for layer caching. Use `npm ci` when a lockfile is
+# present (reproducible), otherwise fall back to `npm install`.
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Build the app (package.json: "build": "vite build" -> dist/).
+COPY . .
+RUN npm run build
+
+# Stage 2: serve the built dist/ with nginx.
+FROM nginx:alpine
+
+# SPA-friendly config: serve index.html for unknown routes and proxy /api to
+# the backend service on the compose network.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

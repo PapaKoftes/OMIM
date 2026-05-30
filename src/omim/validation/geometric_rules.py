@@ -15,7 +15,6 @@ from shapely.geometry import LinearRing, Point, Polygon
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.validation.models import RuleResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

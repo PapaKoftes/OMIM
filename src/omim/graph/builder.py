@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from shapely.geometry import Point, Polygon
 
-from omim.graph.models import EdgeType, GeometryNode, GraphMetadata
 from omim.graph.mgg import ManufacturingGeometryGraph
+from omim.graph.models import EdgeType, GeometryNode, GraphMetadata
 from omim.parser.models import RawEntity, RawGeometry
 from omim.provenance.models import InferenceMethod
 from omim.provenance.tracker import ProvenanceTracker
@@ -39,7 +39,7 @@ class MGGBuilder:
             graph_id=graph_id,
             source_file=raw.source_file,
             source_file_hash=raw.source_file_hash,
-            creation_timestamp=datetime.now(timezone.utc).isoformat(),
+            creation_timestamp=datetime.now(UTC).isoformat(),
         )
 
         mgg = ManufacturingGeometryGraph(metadata)

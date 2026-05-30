@@ -53,3 +53,9 @@ checkpoints/
 
 # Logs
 *.log
+
+# scratch / verification / experiment temp dirs (never commit)
+/_*/
+/_*
+ckpt/
+*_ckpt/

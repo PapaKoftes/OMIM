@@ -11,6 +11,54 @@ See also: [[10_IMPLEMENTATION/ML_Integration]], [[01_FOUNDATION/External_Baselin
 
 ---
 
+## WATERTIGHT EXECUTION LOG (Phases 0–4) — what was actually done & measured
+
+The hardening plan was executed (3D excluded). Honest constraint: no internet in
+the build environment, so Phase 1's "real files" are *synthesized adversarial DXFs*
+reproducing real-world mess, and Phase 2's "expert truth" is *construction-known
+vendor ground truth*. Literal third-party-file acquisition remains the user's step.
+
+| Phase | Done | Evidence |
+|---|---|---|
+| **0 — Reproducibility lock** | ✅ | Same seed → **byte-identical** geometry.dxf/mgg/validation/labels/provenance. Fixed uuid/timestamp leaks + a `PYTHONHASHSEED`-dependent DXF CLASSES ordering bug. `tests/test_reproducibility.py`. |
+| **1 — Parser robustness** | ✅ | Now survives SPLINE, legacy POLYLINE, LWPOLYLINE bulge, ELLIPSE, INSERT/blocks (recursive, WCS), 3D coords; annotations skipped-with-warning, never silent. `ParserConfig`. `tests/test_parser_robustness.py` (18). |
+| **2 — Calibration + ground truth** | ✅ | Confidence now graded by match quality (5.0mm→0.95, 5.4mm→0.33, 50mm→UNKNOWN/0.0, 2mm→flagged). Measured **ECE = 0.123** (moderate; now mildly *under*-confident — the safe direction). Fixes the audit's hardcoded-0.80. |
+| **3 — Generator coverage + realism** | ✅ | All **14/14** classes now generated (was 6); MFG-003/004 exercised; invalid-yield 0.21→0.26; opt-in noise augmentation (diameter jitter, layer noise, dup entities). Reproducibility preserved. |
+| **4 — Model vs rules go/no-go** | ✅ | See below — the decisive result. |
+
+### Phase 4 result (the Leonardo go/no-go gate)
+
+`experiments/phase4_model_vs_rules.py` — both models evaluated on the SAME held-out
+test sets, ground truth from the generation spec, trivial floor included:
+
+| Test data | Deterministic rules (skyline) | GNN | Floor |
+|---|---|---|---|
+| Clean | 0.671 | 0.764 | — |
+| **Noisy (real-world-like)** | **0.479** | **0.864** | 0.055 |
+
+On clean geometry the rules are already decent; the GNN only edges them (so on
+clean data, *ship the rules*). On **messy** input — renamed/dropped layers, jittered
+diameters, duplicate entities, i.e. what real DXFs look like — the brittle exact-match
+rules collapse to 0.48 while a GNN trained on messy data holds at **0.86 (+0.385)**.
+
+**This is the first real evidence in the project that a learned model earns its place.**
+It directly revises the earlier "circular / pointless" conclusion: that conclusion was
+correct for *clean* synthetic data with *broken labels*; with labels fixed and realistic
+noise, there is a genuine regime (mess) where learning substantially beats rules.
+
+**REVISED verdict on Leonardo:** upgraded from "no" to **"conditional go."** The recipe
+demonstrably works *in simulation*. The one remaining gate is **real DXFs**: rerun this
+exact rules-vs-GNN comparison on actual third-party files (OpenDesk/WikiHouse/OpenCutList
+exports + vendor templates). If the GNN still wins on real mess → HPC scale-up is justified.
+If it doesn't → the rules are the product. Either way you now have an executable,
+evidence-based gate instead of a guess.
+
+> Caveats kept honest: single-seed run; the "noise" is a synthetic *approximation* of
+> real mess; the GNN scoring higher on noisy-than-clean reflects train/test distribution
+> match (it was trained on noisy). None of this substitutes for real data — it de-risks it.
+
+---
+
 ## Verification log (tooling installed + checks run)
 
 After the checklists were drafted, the missing tooling was installed and the

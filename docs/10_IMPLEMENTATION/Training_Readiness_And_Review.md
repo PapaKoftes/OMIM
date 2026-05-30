@@ -11,6 +11,42 @@ See also: [[10_IMPLEMENTATION/ML_Integration]], [[01_FOUNDATION/External_Baselin
 
 ---
 
+## Verification log (tooling installed + checks run)
+
+After the checklists were drafted, the missing tooling was installed and the
+previously-unverifiable items were exercised. This surfaced **two real bugs**,
+now fixed (with regression tests):
+
+| Installed / run | Result |
+|---|---|
+| `torch_geometric` 2.7.0 (torch 2.12 CPU) | ML stack now active: `ML_AVAILABLE=True`; ML tests 18 pass / 2 skip |
+| Node.js 24.16 + `npm run build` | **Frontend builds** — 601 KB `dist/` (index.html + assets) |
+| End-to-end `omim train` / `omim predict` | Run end-to-end; checkpoint saved; predict emits Level-6 advisory output |
+| `pytest --cov` | Core modules 89–100% (graph/query helpers lower) |
+| `mypy` | 41 findings, ~all third-party-stub/`Any` (non-blocking); 1 cli cleanup fixed |
+| **Leakage check** (LogReg on 16 features) | **macro-F1 0.735** vs GNN ~0.89 — graph adds ~0.15, but most signal is per-node features |
+
+### BUG 1 (critical) — training labels were all UNKNOWN
+`load_sample_as_data` joined labels to nodes by `geometry_entity_id`/`node_id`,
+which **do not exist** in `labels.json` (it carries `feature_class` + `position_mm`).
+Every node collapsed to `UNKNOWN_FEATURE`, so `val_macro_f1=1.0` was a degenerate
+single-class artifact — the GNN learned *nothing*. **Fixed:** join by position
+(centroid ↔ `position_mm`) + boundary→PROFILE_CUT, mirroring the benchmark join.
+Post-fix the model genuinely learns (val 0.40→0.89; 5mm→SHELF_PIN 0.83). Locked by
+`tests/test_ml_label_join.py`.
+
+### BUG 2 — silent checkpoint failure
+A non-existent (but explicitly given) checkpoint path silently used random weights
+and reported `fallback=False`. **Fixed:** missing-but-requested checkpoint now
+raises → flagged `fallback=True` with a note (Failure_Modes D-003). `None`
+(intentional untrained) is unchanged.
+
+> Net effect on the review below: the training path now *actually works*, but the
+> **circularity point stands and is now quantified** — a linear model already
+> reaches 0.735 on the same features, so synthetic data does not justify HPC time.
+
+---
+
 ## Measured baseline reality (seed=1, 300 samples)
 
 | Fact | Value | Implication |

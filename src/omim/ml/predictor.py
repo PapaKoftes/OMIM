@@ -86,17 +86,33 @@ class GNNPredictor:
     # Model loading helpers (only reached when ML_AVAILABLE)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _load_state_into(model: Any, checkpoint: Path | None) -> None:
+        """Load a checkpoint into *model* if one was requested.
+
+        Honesty rule (Failure_Modes D-003 / 'no silent failure'): if a checkpoint
+        path was *explicitly provided* but does not exist, raise — the caller's
+        try/except converts this into a flagged ``fallback=True`` result rather
+        than silently predicting with random weights. ``None`` means 'no trained
+        model requested' and is left as an (untrained) fresh model intentionally.
+        """
+        if checkpoint is None:
+            return
+        if not checkpoint.exists():
+            raise FileNotFoundError(f"checkpoint not found: {checkpoint}")
+        import torch
+
+        state = torch.load(checkpoint, map_location="cpu", weights_only=False)
+        model.load_state_dict(state.get("model_state", state))
+
     def _load_feature_model(self) -> Any:
         if self._feature_model is not None:
             return self._feature_model
-        import torch
 
         from omim.ml.models import ManufacturingFeatureGNN
 
         model = ManufacturingFeatureGNN()
-        if self.feature_checkpoint and self.feature_checkpoint.exists():
-            state = torch.load(self.feature_checkpoint, map_location="cpu")
-            model.load_state_dict(state.get("model_state", state))
+        self._load_state_into(model, self.feature_checkpoint)
         model.eval()
         self._feature_model = model
         return model
@@ -104,17 +120,11 @@ class GNNPredictor:
     def _load_manufacturability_model(self) -> Any:
         if self._manufacturability_model is not None:
             return self._manufacturability_model
-        import torch
 
         from omim.ml.models import ManufacturabilityGNN
 
         model = ManufacturabilityGNN()
-        if (
-            self.manufacturability_checkpoint
-            and self.manufacturability_checkpoint.exists()
-        ):
-            state = torch.load(self.manufacturability_checkpoint, map_location="cpu")
-            model.load_state_dict(state.get("model_state", state))
+        self._load_state_into(model, self.manufacturability_checkpoint)
         model.eval()
         self._manufacturability_model = model
         return model
@@ -122,14 +132,11 @@ class GNNPredictor:
     def _load_vgae(self) -> Any:
         if self._vgae is not None:
             return self._vgae
-        import torch
 
         from omim.ml.models import build_vgae
 
         vgae = build_vgae()
-        if self.vgae_checkpoint and self.vgae_checkpoint.exists():
-            state = torch.load(self.vgae_checkpoint, map_location="cpu")
-            vgae.load_state_dict(state.get("model_state", state))
+        self._load_state_into(vgae, self.vgae_checkpoint)
         vgae.eval()
         self._vgae = vgae
         return vgae

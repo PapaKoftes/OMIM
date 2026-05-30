@@ -54,29 +54,57 @@ class TrainingResult(BaseModel):
 
 
 def _node_labels_from_sample(
-    node_ids: list[str], labels: dict
+    node_ids: list[str],
+    labels: dict,
+    mgg: Any,
+    position_tol_mm: float = 0.5,
 ) -> np.ndarray:
     """Build a per-node int label array aligned with ``node_ids``.
 
-    labels.json features carry ``geometry_entity_id`` / ``feature_id`` /
-    ``node_id`` linking them to geometry nodes. Unmatched nodes (e.g. the panel
-    boundary, or unlabeled geometry) are assigned UNKNOWN_FEATURE.
+    The canonical ``labels.json`` features carry ``feature_class`` and
+    ``position_mm`` but NOT a geometry-node id (the generator writes each
+    feature's ``position_mm`` equal to the corresponding MGG node ``centroid``).
+    We therefore join by position (mirroring ``omim.benchmarks.tasks._join_truth``):
+
+      1. The outer-boundary geometry node maps to PROFILE_CUT.
+      2. Every other geometry node matches the nearest unused label feature whose
+         ``position_mm`` is within ``position_tol_mm`` of the node ``centroid``.
+      3. Unmatched nodes -> UNKNOWN_FEATURE.
+
+    Greedy one-to-one assignment prevents a single label from labelling two nodes.
     """
-    by_geom: dict[str, str] = {}
-    for feat in labels.get("features", []):
-        fc = feat.get("feature_class")
-        if not fc:
-            continue
-        for key in ("geometry_entity_id", "node_id", "feature_id"):
-            gid = feat.get(key)
-            if gid is not None:
-                by_geom[str(gid)] = fc
+    feats = [
+        (f.get("feature_class"), f.get("position_mm"))
+        for f in labels.get("features", [])
+        if f.get("feature_class")
+    ]
+    used = [False] * len(feats)
 
     out = np.full(len(node_ids), _UNKNOWN_INDEX, dtype=np.int64)
     for i, nid in enumerate(node_ids):
-        fc = by_geom.get(str(nid))
-        if fc is not None:
-            out[i] = CLASS_TO_INDEX.get(fc, _UNKNOWN_INDEX)
+        data = mgg.get_node(nid) or {}
+
+        # Rule 1: the outer profile cut is the panel boundary.
+        if data.get("is_outer_boundary"):
+            out[i] = CLASS_TO_INDEX.get("PROFILE_CUT", _UNKNOWN_INDEX)
+            continue
+
+        centroid = data.get("centroid")
+        if not centroid:
+            continue
+
+        # Rule 2: nearest unused label within tolerance.
+        best_j, best_d = None, position_tol_mm
+        for j, (fc, pos) in enumerate(feats):
+            if used[j] or not pos or fc == "PROFILE_CUT":
+                continue
+            d = ((float(pos[0]) - float(centroid[0])) ** 2
+                 + (float(pos[1]) - float(centroid[1])) ** 2) ** 0.5
+            if d <= best_d:
+                best_d, best_j = d, j
+        if best_j is not None:
+            used[best_j] = True
+            out[i] = CLASS_TO_INDEX.get(feats[best_j][0], _UNKNOWN_INDEX)
     return out
 
 
@@ -99,7 +127,7 @@ def load_sample_as_data(sample_dir: str | Path) -> Any:
     from omim.ml.features import extract_node_features
 
     node_ids, _ = extract_node_features(mgg)
-    y = _node_labels_from_sample(node_ids, labels)
+    y = _node_labels_from_sample(node_ids, labels, mgg)
     graph_y = 1.0 if labels.get("is_valid", True) else 0.0
     return mgg_to_data(mgg, y=y, graph_label=graph_y)
 

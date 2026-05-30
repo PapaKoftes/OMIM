@@ -337,9 +337,11 @@ def _cmd_predict(args) -> int:
 
     predictor = GNNPredictor(feature_checkpoint=str(args.feature_checkpoint)
                              if args.feature_checkpoint else None)
-    result = predictor.predict(mgg)
-    print(json.dumps(result if isinstance(result, dict) else result.__dict__,
-                     indent=2, default=str))
+    prediction = predictor.predict(mgg)
+    payload = prediction if isinstance(prediction, dict) else getattr(
+        prediction, "__dict__", prediction
+    )
+    print(json.dumps(payload, indent=2, default=str))
     return 0
 
 

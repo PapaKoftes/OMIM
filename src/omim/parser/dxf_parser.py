@@ -72,7 +72,7 @@ def _scale_pt(x: float, y: float, from_units: str | None) -> tuple[float, float]
 
 def _compute_shapely_circle(cx: float, cy: float, r: float) -> dict:
     """Compute Shapely-derived properties for a circle."""
-    shape = Point(cx, cy).buffer(r, resolution=64)
+    shape = Point(cx, cy).buffer(r, quad_segs=64)
     return {
         "bounding_box": [cx - r, cy - r, cx + r, cy + r],
         "centroid": [cx, cy],

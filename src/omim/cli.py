@@ -33,6 +33,20 @@ def main(argv: list[str] | None = None) -> int:
     validate_p = sub.add_parser("validate", help="Validate a DXF file")
     validate_p.add_argument("file", type=Path, help="Path to DXF file")
 
+    # --- generate ---
+    gen_p = sub.add_parser("generate", help="Generate a synthetic panel dataset")
+    gen_p.add_argument("output_dir", type=Path, help="Output dataset directory")
+    gen_p.add_argument("-n", "--num-samples", type=int, default=100, help="Number of samples")
+    gen_p.add_argument("--seed", type=int, default=42, help="Random seed (reproducible)")
+    gen_p.add_argument(
+        "--invalid-ratio", type=float, default=0.30,
+        help="Fraction of intentionally-invalid samples",
+    )
+    gen_p.add_argument(
+        "--density", choices=["sparse", "medium", "dense"], default="medium",
+        help="Feature density per panel",
+    )
+
     # --- serve ---
     serve_p = sub.add_parser("serve", help="Start the API server")
     serve_p.add_argument("--host", default="0.0.0.0", help="Bind host")
@@ -50,6 +64,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_analyze(args)
     elif args.command == "validate":
         return _cmd_validate(args)
+    elif args.command == "generate":
+        return _cmd_generate(args)
     elif args.command == "serve":
         return _cmd_serve(args)
     else:
@@ -131,6 +147,31 @@ def _cmd_validate(args) -> int:
     passed_count = sum(1 for r in all_results if r.passed)
     print(f"\nTotal: {passed_count} passed, {err_count} errors, {warn_count} warnings")
     return 2 if not report.overall_valid else 0
+
+
+def _cmd_generate(args) -> int:
+    from omim.synthetic.generator import PanelGenerator
+    from omim.synthetic.models import PanelGeneratorConfig
+
+    config = PanelGeneratorConfig(
+        random_seed=args.seed,
+        num_samples=args.num_samples,
+        invalid_sample_ratio=args.invalid_ratio,
+        feature_density=args.density,
+    )
+    print(
+        f"Generating {config.num_samples} samples "
+        f"(seed={config.random_seed}, invalid_ratio={config.invalid_sample_ratio}) "
+        f"-> {args.output_dir}"
+    )
+    manifest = PanelGenerator(config).generate_dataset(str(args.output_dir))
+    print(
+        f"Done: {manifest.total_samples} samples "
+        f"({manifest.valid_count} valid, {manifest.invalid_count} invalid) | "
+        f"splits: train={manifest.train_count} val={manifest.val_count} test={manifest.test_count}"
+    )
+    print(f"Manifest + dataset_metadata written to {args.output_dir}")
+    return 0
 
 
 def _cmd_serve(args) -> int:

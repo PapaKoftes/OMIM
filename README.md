@@ -31,12 +31,35 @@ omim analyze panel.dxf
 # Validate only
 omim validate panel.dxf
 
+# Generate a synthetic dataset (standards-grounded, validator-gated)
+omim generate ./data/synthetic -n 1000 --seed 42 --invalid-ratio 0.30
+
 # Start API server
 omim serve
 
 # Run tests
 pytest
 ```
+
+## Synthetic Dataset Generation
+
+OMIM generates training data **from manufacturing standards, not random geometry**.
+Dimensions come from real manufacturer catalogs (Blum 35mm hinge cup / 22.5mm setback,
+Häfele Confirmat 7mm, the European 32mm Rasterbohrsystem, DIN 7 dowels), and the
+deterministic validator acts as the gatekeeper:
+
+```
+Manufacturing Standards → Generator → DXF → Parser → MGG → Validator (gate)
+                                                              ↓
+                                          keep iff is_valid matches intent
+                                                              ↓
+                                       5-file canonical sample + provenance
+```
+
+Each sample is emitted as the canonical 5-file format (`geometry.dxf`, `mgg.json`,
+`validation.json`, `labels.json`, `provenance.json`) with train/val/test splits and
+a dataset manifest. Ground-truth labels come from the **generation spec**, never from
+inference. Same seed → identical dataset.
 
 ## Frontend
 

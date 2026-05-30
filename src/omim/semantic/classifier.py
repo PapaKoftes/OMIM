@@ -131,8 +131,7 @@ class FeatureClassifier:
     def classify(
         self,
         mgg: ManufacturingGeometryGraph,
-        *,
-        validation_report: dict | None = None,
+        validation_report: object | None = None,
     ) -> SemanticAnnotations:
         """Run rule-based feature classification on all geometry nodes.
 
@@ -144,16 +143,24 @@ class FeatureClassifier:
         mgg:
             The Manufacturing Geometry Graph (read-only).
         validation_report:
-            Optional validation report dict. If provided and
-            ``layer1_passed`` is ``False``, raises
-            ``SemanticPreconditionError``.
+            Optional ValidationReport (or dict). Per the Semantic Interface,
+            if provided and ``layer1_passed`` is ``False``, raises
+            ``SemanticPreconditionError`` (the semantic layer does not run on
+            geometrically invalid graphs).
         """
         # Pre-condition: Layer 1 must have passed
         if validation_report is not None:
-            l1_passed = validation_report.get(
-                "layer1_passed",
-                validation_report.get("overall_valid", True),
-            )
+            if isinstance(validation_report, dict):
+                l1_passed = validation_report.get(
+                    "layer1_passed",
+                    validation_report.get("overall_valid", True),
+                )
+            else:
+                l1_passed = getattr(
+                    validation_report,
+                    "layer1_passed",
+                    getattr(validation_report, "overall_valid", True),
+                )
             if not l1_passed:
                 raise SemanticPreconditionError(
                     "Semantic layer requires layer1_passed=True. "

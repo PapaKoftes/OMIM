@@ -1,0 +1,265 @@
+"""Violation injection for synthetic invalid samples.
+
+Each injector applies EXACTLY ONE violation type and records the corresponding
+rule_id on the affected FeatureSpec(s). The recorded rule_ids become the ground
+truth for the invalid sample — the validator must independently detect them.
+
+Injectors are written to match the validator's detection logic precisely:
+
+  MFG-001 edge clearance  : circle centroid < 8 mm from an edge.
+  MFG-002 hole spacing    : two circles with wall (center_dist - rA - rB) < 3 mm.
+  MFG-011 undersized hole : circle diameter < 3 mm.
+  GEO-007 outside boundary: feature pushed outside the panel.
+  GEO-001 open contour    : closed polyline given an endpoint gap > 0.01 mm.
+"""
+
+from __future__ import annotations
+
+import math
+
+import numpy as np
+
+from omim.synthetic.models import FeatureSpec, PanelSpec
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _panel_bounds(panel: PanelSpec) -> tuple[float, float, float, float]:
+    xs = [p[0] for p in panel.boundary_points]
+    ys = [p[1] for p in panel.boundary_points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _circle_features(features: list[FeatureSpec]) -> list[FeatureSpec]:
+    return [
+        f
+        for f in features
+        if f.entity_type == "CIRCLE" and f.center is not None and f.radius_mm is not None
+    ]
+
+
+def _mark(feature: FeatureSpec, rule_id: str) -> None:
+    feature.is_valid = False
+    if rule_id not in feature.violations:
+        feature.violations.append(rule_id)
+
+
+# ---------------------------------------------------------------------------
+# MFG-001 — Edge clearance violation
+# ---------------------------------------------------------------------------
+
+
+def apply_edge_clearance_violation(
+    panel: PanelSpec, features: list[FeatureSpec], rng: np.random.Generator
+) -> str | None:
+    """Move a circle so its centroid sits 2.0..7.9 mm from an edge (MFG-001)."""
+    circles = _circle_features(features)
+    if not circles:
+        return None
+
+    feat = circles[rng.integers(0, len(circles))]
+    xmin, ymin, xmax, ymax = _panel_bounds(panel)
+    cx, cy = feat.center  # type: ignore[misc]
+
+    edge_offset = float(rng.uniform(2.0, 7.9))
+    edge = rng.integers(0, 4)
+    if edge == 0:      # left
+        feat.center = (xmin + edge_offset, cy)
+    elif edge == 1:    # right
+        feat.center = (xmax - edge_offset, cy)
+    elif edge == 2:    # bottom
+        feat.center = (cx, ymin + edge_offset)
+    else:              # top
+        feat.center = (cx, ymax - edge_offset)
+
+    _mark(feat, "MFG-001")
+    return "MFG-001"
+
+
+# ---------------------------------------------------------------------------
+# MFG-002 — Hole spacing (wall thickness) violation
+# ---------------------------------------------------------------------------
+
+
+def apply_hole_spacing_violation(
+    panel: PanelSpec, features: list[FeatureSpec], rng: np.random.Generator
+) -> str | None:
+    """Move two circles so the wall between them is < 3 mm (MFG-002)."""
+    circles = _circle_features(features)
+    if len(circles) < 2:
+        return None
+
+    idx_a = int(rng.integers(0, len(circles)))
+    idx_b = int(rng.integers(0, len(circles)))
+    while idx_b == idx_a:
+        idx_b = int(rng.integers(0, len(circles)))
+
+    a = circles[idx_a]
+    b = circles[idx_b]
+    r_a = a.radius_mm or 0.0
+    r_b = b.radius_mm or 0.0
+
+    # Keep A fixed; place B so the wall is a sub-3mm value (kept inside panel).
+    ax, ay = a.center  # type: ignore[misc]
+    target_wall = float(rng.uniform(0.5, 2.5))
+    center_dist = r_a + r_b + target_wall
+
+    xmin, ymin, xmax, ymax = _panel_bounds(panel)
+    placed = False
+    for _ in range(20):
+        angle = float(rng.uniform(0, 2 * math.pi))
+        bx = ax + center_dist * math.cos(angle)
+        by = ay + center_dist * math.sin(angle)
+        if (
+            bx - r_b >= xmin
+            and bx + r_b <= xmax
+            and by - r_b >= ymin
+            and by + r_b <= ymax
+        ):
+            b.center = (bx, by)
+            placed = True
+            break
+    if not placed:
+        # Fall back to a horizontal offset; still records the intended violation.
+        b.center = (ax + center_dist, ay)
+
+    _mark(a, "MFG-002")
+    _mark(b, "MFG-002")
+    return "MFG-002"
+
+
+# ---------------------------------------------------------------------------
+# MFG-011 — Undersized hole
+# ---------------------------------------------------------------------------
+
+
+def apply_undersized_hole(
+    panel: PanelSpec, features: list[FeatureSpec], rng: np.random.Generator
+) -> str | None:
+    """Shrink a circle below the 3 mm minimum diameter (MFG-011)."""
+    circles = _circle_features(features)
+    if not circles:
+        return None
+
+    feat = circles[int(rng.integers(0, len(circles)))]
+    new_diameter = float(rng.uniform(0.5, 2.9))
+    feat.radius_mm = new_diameter / 2.0
+    _mark(feat, "MFG-011")
+    return "MFG-011"
+
+
+# ---------------------------------------------------------------------------
+# GEO-007 — Hole outside boundary
+# ---------------------------------------------------------------------------
+
+
+def apply_hole_outside_boundary(
+    panel: PanelSpec, features: list[FeatureSpec], rng: np.random.Generator
+) -> str | None:
+    """Move a feature outside the panel boundary (GEO-007)."""
+    circles = _circle_features(features)
+    if not circles:
+        return None
+
+    feat = circles[int(rng.integers(0, len(circles)))]
+    xmin, ymin, xmax, ymax = _panel_bounds(panel)
+    r = feat.radius_mm or 0.0
+    _, cy = feat.center  # type: ignore[misc]
+
+    # Push the whole circle clearly past one edge.
+    overshoot = float(rng.uniform(5.0, 30.0))
+    side = rng.integers(0, 4)
+    if side == 0:      # beyond left
+        feat.center = (xmin - r - overshoot, cy)
+    elif side == 1:    # beyond right
+        feat.center = (xmax + r + overshoot, cy)
+    elif side == 2:    # beyond bottom
+        cx, _ = feat.center  # type: ignore[misc]
+        feat.center = (cx, ymin - r - overshoot)
+    else:              # beyond top
+        cx, _ = feat.center  # type: ignore[misc]
+        feat.center = (cx, ymax + r + overshoot)
+
+    _mark(feat, "GEO-007")
+    return "GEO-007"
+
+
+# ---------------------------------------------------------------------------
+# GEO-001 — Open contour
+# ---------------------------------------------------------------------------
+
+
+def apply_open_contour(
+    panel: PanelSpec, features: list[FeatureSpec], rng: np.random.Generator
+) -> str | None:
+    """Turn a closed polyline into an open one with a > 0.01 mm endpoint gap.
+
+    The validator's GEO-001 skips entities flagged closed, so the contour is
+    re-flagged open and the DXF writer will emit it un-closed with a real gap.
+    """
+    polylines = [
+        f
+        for f in features
+        if f.entity_type == "LWPOLYLINE" and f.points and len(f.points) >= 3
+    ]
+    if not polylines:
+        return None
+
+    feat = polylines[int(rng.integers(0, len(polylines)))]
+    pts = [tuple(p) for p in feat.points]  # type: ignore[union-attr]
+
+    # Drop a duplicated closing vertex if present, then nudge the last point so
+    # first != last by a clear margin (> 0.01 mm).
+    if len(pts) > 1 and pts[0] == pts[-1]:
+        pts = pts[:-1]
+
+    gap = float(rng.uniform(0.5, 5.0))
+    last_x, last_y = pts[-1]
+    pts[-1] = (last_x + gap, last_y + gap)
+
+    feat.points = pts
+    feat.is_closed = False
+    _mark(feat, "GEO-001")
+    return "GEO-001"
+
+
+# ---------------------------------------------------------------------------
+# Registry + orchestration
+# ---------------------------------------------------------------------------
+
+INVALIDATION_TYPES = {
+    "MFG-001": apply_edge_clearance_violation,
+    "MFG-002": apply_hole_spacing_violation,
+    "MFG-011": apply_undersized_hole,
+    "GEO-007": apply_hole_outside_boundary,
+    "GEO-001": apply_open_contour,
+}
+
+
+def inject_violations(
+    panel: PanelSpec,
+    features: list[FeatureSpec],
+    n_violations: int,
+    rng: np.random.Generator,
+) -> tuple[list[FeatureSpec], list[str]]:
+    """Inject up to ``n_violations`` distinct violation types into *features*.
+
+    Returns the (mutated) feature list and the list of rule_ids actually
+    injected. Each violation type is applied at most once per sample; injectors
+    that cannot apply (e.g. no circles) are skipped.
+    """
+    injected: list[str] = []
+    type_names = list(INVALIDATION_TYPES.keys())
+    rng.shuffle(type_names)
+
+    for name in type_names:
+        if len(injected) >= n_violations:
+            break
+        injector = INVALIDATION_TYPES[name]
+        rule_id = injector(panel, features, rng)
+        if rule_id is not None:
+            injected.append(rule_id)
+
+    return features, injected

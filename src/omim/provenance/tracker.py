@@ -1,79 +1,138 @@
-"""Provenance tracker — records why each inference decision was made.
+"""ProvenanceTracker — context manager that creates ProvenanceRecords.
 
-Every FeatureNode classification and every ConstraintNode violation carries
-a provenance record explaining the rule, method, and inputs used.
+Spec: 08_PROVENANCE_AND_CONFIDENCE/Provenance_System.md
 """
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
-from enum import Enum
 
-from pydantic import BaseModel, Field
+from omim.provenance.models import (
+    EvidenceItem,
+    InferenceMethod,
+    ProvenanceRecord,
+    ReviewStatus,
+)
 
-
-class InferenceMethod(str, Enum):
-    DETERMINISTIC = "deterministic"
-    HEURISTIC = "heuristic"
-    ML_GNN = "ml_gnn"
-    LLM_ADVISORY = "llm_advisory"
-
-
-class ProvenanceRecord(BaseModel):
-    """Immutable record of an inference decision."""
-
-    record_id: str
-    timestamp: str = ""
-    node_id: str  # The node this record explains
-    method: InferenceMethod
-    rule_id: str = ""  # e.g., "DIAMETER_LOOKUP" or "MFG-001"
-    inputs: dict = Field(default_factory=dict)  # What data was used
-    output: dict = Field(default_factory=dict)  # What was decided
-    confidence: float = 0.0
-    parent_record_id: str | None = None  # Chain of derivations
-
-    def model_post_init(self, __context) -> None:
-        if not self.timestamp:
-            self.timestamp = datetime.now(timezone.utc).isoformat()
+OMIM_VERSION = "v0.1.0"
 
 
 class ProvenanceTracker:
-    """Collects provenance records for an MGG processing run."""
+    """Context manager that creates ProvenanceRecords for pipeline stages.
 
-    def __init__(self) -> None:
-        self._records: list[ProvenanceRecord] = []
-        self._counter = 0
+    Usage::
 
-    def record(
+        with ProvenanceTracker(
+            stage="semantic",
+            module="omim.semantic.classifier",
+            source_file="geometry.dxf",
+            source_file_hash="sha256:abc123...",
+        ) as tracker:
+            record = tracker.create_record(
+                inference_method=InferenceMethod.HEURISTIC,
+                confidence=0.88,
+                evidence=[...],
+                source_entity_ids=["geom-123"],
+            )
+    """
+
+    def __init__(
         self,
-        node_id: str,
-        method: InferenceMethod,
-        rule_id: str = "",
-        inputs: dict | None = None,
-        output: dict | None = None,
-        confidence: float = 0.0,
-        parent_record_id: str | None = None,
+        stage: str,
+        module: str = "",
+        source_file: str | None = None,
+        source_file_hash: str | None = None,
+        ontology_version: str = "v0.1.0",
+        ruleset_version: str = "v0.1.0",
+    ) -> None:
+        self.stage = stage
+        self.module = module
+        self.source_file = source_file
+        self.source_file_hash = source_file_hash
+        self.ontology_version = ontology_version
+        self.ruleset_version = ruleset_version
+        self._records: list[ProvenanceRecord] = []
+        self._start_time: datetime | None = None
+        self._duration_ms: float | None = None
+
+    def __enter__(self) -> ProvenanceTracker:
+        self._start_time = datetime.now(timezone.utc)
+        return self
+
+    def __exit__(self, *args) -> None:
+        if self._start_time:
+            elapsed = datetime.now(timezone.utc) - self._start_time
+            self._duration_ms = elapsed.total_seconds() * 1000
+
+    def create_record(
+        self,
+        inference_method: InferenceMethod,
+        confidence: float,
+        evidence: list[EvidenceItem] | None = None,
+        source_entity_ids: list[str] | None = None,
+        parent_record_ids: list[str] | None = None,
+        confidence_method: str = "",
     ) -> ProvenanceRecord:
-        self._counter += 1
-        rec = ProvenanceRecord(
-            record_id=f"prov-{self._counter:04d}",
-            node_id=node_id,
-            method=method,
-            rule_id=rule_id,
-            inputs=inputs or {},
-            output=output or {},
+        if not confidence_method:
+            confidence_method = self._infer_confidence_method(inference_method)
+
+        record = ProvenanceRecord(
+            record_id=str(uuid.uuid4()),
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            generator="omim",
+            generator_version=OMIM_VERSION,
+            pipeline_stage=self.stage,
+            module=self.module,
+            ontology_version=self.ontology_version,
+            ruleset_version=self.ruleset_version,
+            inference_method=inference_method,
             confidence=confidence,
-            parent_record_id=parent_record_id,
+            confidence_method=confidence_method,
+            evidence=evidence or [],
+            source_file=self.source_file,
+            source_file_hash=self.source_file_hash,
+            source_entity_ids=source_entity_ids or [],
+            parent_record_ids=parent_record_ids or [],
+            review_status=ReviewStatus.UNREVIEWED,
         )
-        self._records.append(rec)
-        return rec
+        self._records.append(record)
+        return record
+
+    @staticmethod
+    def _infer_confidence_method(inference_method: InferenceMethod) -> str:
+        return {
+            InferenceMethod.DETERMINISTIC: "geometric_computation",
+            InferenceMethod.HEURISTIC: "diameter_pattern_matching",
+            InferenceMethod.SEMANTIC: "feature_classification",
+            InferenceMethod.ML_GNN: "softmax_probability",
+            InferenceMethod.ML_LLM: "llm_advisory",
+            InferenceMethod.SYNTHETIC: "generation_ground_truth",
+            InferenceMethod.HUMAN_ANNOTATED: "expert_annotation",
+        }.get(inference_method, "unknown")
 
     @property
     def records(self) -> list[ProvenanceRecord]:
         return list(self._records)
 
     def records_for_node(self, node_id: str) -> list[ProvenanceRecord]:
-        return [r for r in self._records if r.node_id == node_id]
+        return [
+            r for r in self._records if node_id in r.source_entity_ids
+        ]
+
+    def get_summary(self) -> dict:
+        return {
+            "stage": self.stage,
+            "total_records": len(self._records),
+            "duration_ms": self._duration_ms,
+            "methods_used": list({r.inference_method.value for r in self._records}),
+            "confidence_range": (
+                min(r.confidence for r in self._records),
+                max(r.confidence for r in self._records),
+            )
+            if self._records
+            else (None, None),
+        }
 
     def to_dict(self) -> list[dict]:
         return [r.model_dump() for r in self._records]

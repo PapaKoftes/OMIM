@@ -1,0 +1,160 @@
+# Layer 1: Geometric Validity Rules
+# Version: v0.1.0
+# Source: 05_VALIDATION/Geometric_Validation.md
+# GEO-001 through GEO-008
+# All rules are rule_type: "geometric" with confidence_ceiling: 1.0
+
+version: "v0.1.0"
+
+rules:
+  - rule_id: "GEO-001"
+    version: "v0.1.0"
+    name: "open_contour_detection"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "ERROR"
+    applies_to: ["LWPOLYLINE", "ARC", "SPLINE"]
+    parameters:
+      closure_tolerance_mm: 0.01
+    description: "For each LWPOLYLINE, check that the Euclidean distance between the first and last vertex is <= 0.01mm. Closed flag in DXF is insufficient -- verify coordinate closure."
+    source: "Geometric mathematics"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "GEO-002"
+    version: "v0.1.0"
+    name: "self_intersection_detection"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "ERROR"
+    applies_to: ["LWPOLYLINE", "SPLINE"]
+    parameters: {}
+    description: "Use Shapely LinearRing.is_simple to detect self-intersecting contours. A self-intersecting contour cannot be validly machined -- the tool path is undefined."
+    source: "Shapely is_simple property"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "GEO-003"
+    version: "v0.1.0"
+    name: "degenerate_geometry_detection"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "ERROR"
+    applies_to: ["CIRCLE", "LWPOLYLINE", "LINE", "ARC"]
+    parameters:
+      min_radius_mm: 0.001
+      min_length_mm: 0.001
+    description: "Circles with radius <= 0.001mm, lines with length <= 0.001mm, and polygons with area <= 0.001mm2 are degenerate. These represent data errors or noise."
+    source: "Geometric mathematics"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "GEO-004"
+    version: "v0.1.0"
+    name: "coordinate_range_validation"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "ERROR"
+    applies_to: ["CIRCLE", "LWPOLYLINE", "LINE", "ARC", "SPLINE"]
+    parameters:
+      max_dimension_mm: 5000
+      min_coordinate_mm: -100
+    description: "All coordinates must fall within [-100mm, 5000mm] on both axes. Negative coordinates beyond -100mm indicate a misaligned DXF origin. Upper bound matches maximum CNC table dimension."
+    source: "Domain constraint; nesting table limits"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "GEO-005"
+    version: "v0.1.0"
+    name: "contour_orientation"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "WARNING"
+    applies_to: ["LWPOLYLINE", "closed_contours"]
+    parameters: {}
+    description: "Outer profile contours should be counter-clockwise (CCW); internal contours (holes, pockets) should be clockwise (CW). Some CAD software exports reversed orientation. WARNING because the parser can normalize orientation during import."
+    source: "CNC convention for climb vs. conventional milling direction"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "GEO-006"
+    version: "v0.1.0"
+    name: "duplicate_geometry_detection"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "WARNING"
+    applies_to: ["CIRCLE", "LWPOLYLINE"]
+    parameters:
+      position_tolerance_mm: 0.1
+      size_tolerance_ratio: 0.01
+    description: "Two circles are duplicates if their centers are within 0.1mm and radii within 1%. Two polylines are duplicates if their bounding boxes match within tolerance. Duplicates cause double-cutting which increases tool wear."
+    source: "DXF authoring error pattern"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "GEO-007"
+    version: "v0.1.0"
+    name: "geometry_within_panel_bounds"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "ERROR"
+    applies_to: ["all geometry within a panel context"]
+    parameters: {}
+    description: "All features must lie within or on the panel boundary. Features partially or fully outside the panel boundary cannot be machined."
+    source: "Physical requirement: cannot machine outside stock material"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "GEO-008"
+    version: "v0.1.0"
+    name: "zero_area_closed_contour"
+    category: "geometric"
+    layer: 1
+    rule_type: "geometric"
+    severity: "ERROR"
+    applies_to: ["LWPOLYLINE"]
+    parameters:
+      min_area_mm2: 1.0
+    description: "A closed LWPOLYLINE with area < 1mm2 cannot represent a manufacturable feature. Catches collinear 'closed' contours where all points fall on a line."
+    source: "Geometric mathematics"
+    confidence_ceiling: 1.0
+    adjustable: false
+    expert_reviewed: true
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true

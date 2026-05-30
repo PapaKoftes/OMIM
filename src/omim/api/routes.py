@@ -49,8 +49,8 @@ async def analyze_dxf(file: UploadFile = File(...)) -> dict[str, Any]:
         # Build MGG
         mgg = _builder.build(parse_result.geometry)
 
-        # Classify features
-        classifications = _classifier.classify(mgg)
+        # Classify features (returns SemanticAnnotations; does NOT mutate MGG)
+        annotations = _classifier.classify(mgg)
 
         # Validate
         report = _validator.validate(mgg)
@@ -60,7 +60,7 @@ async def analyze_dxf(file: UploadFile = File(...)) -> dict[str, Any]:
             "success": True,
             "graph": mgg_to_cytoscape(mgg),
             "validation": report.model_dump(),
-            "classifications": [c.model_dump() for c in classifications],
+            "annotations": annotations.model_dump(),
             "parse_warnings": [
                 w.model_dump() for w in parse_result.geometry.warnings
             ],
@@ -69,8 +69,8 @@ async def analyze_dxf(file: UploadFile = File(...)) -> dict[str, Any]:
                 "feature_nodes": mgg.metadata.feature_node_count,
                 "constraint_nodes": mgg.metadata.constraint_node_count,
                 "edges": mgg.metadata.edge_count,
-                "validation_errors": report.failed,
-                "validation_warnings": report.warnings,
+                "validation_errors": report.severity_summary.get("ERROR", 0),
+                "validation_warnings": report.severity_summary.get("WARNING", 0),
                 "panel_width_mm": mgg.metadata.panel_width_mm,
                 "panel_height_mm": mgg.metadata.panel_height_mm,
             },

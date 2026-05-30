@@ -1,0 +1,277 @@
+# Layer 2: Manufacturing Feasibility Rules
+# Version: v0.1.0
+# Source: 05_VALIDATION/Manufacturability_Validation.md
+# MFG-001 through MFG-012
+# Runs only after Layer 1 passes. Has NO access to semantic annotations.
+
+version: "v0.1.0"
+
+rules:
+  - rule_id: "MFG-001"
+    version: "v0.1.0"
+    name: "minimum_edge_clearance"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "shop_convention"
+    severity: "ERROR"
+    applies_to: ["CIRCLE", "LWPOLYLINE"]
+    parameters:
+      min_edge_clearance_mm: 8.0
+    description: "The centroid of each non-boundary geometry node must be at least 8mm from the panel boundary edge. Too close to edge causes fibre tear-out during routing, panel splitting at drill site."
+    domain_applicability:
+      material: [MDF, particleboard, melamine_particleboard]
+      machine_type: [3_axis_cnc_router]
+      NOT_applicable_to: [solid_wood, plywood_grain_sensitive, high_speed_milling]
+    source: "Shop convention; MDF tear-out prevention"
+    standards_refs:
+      - standard: "DIN 68861-1"
+        clause: ""
+        description: "Panel furniture surfaces; structural requirements indirectly imply edge distance"
+    confidence_ceiling: 0.75
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-002"
+    version: "v0.1.0"
+    name: "minimum_feature_spacing"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "material_heuristic"
+    severity: "ERROR"
+    applies_to: ["CIRCLE"]
+    parameters:
+      min_drill_wall_mm: 3.0
+    description: "For each pair of CIRCLE entities, the minimum wall thickness (center_distance - radius_A - radius_B) must be >= 3mm. Thin walls between holes cause splitting in MDF/particleboard."
+    domain_applicability:
+      material: [MDF, particleboard, melamine_particleboard]
+      machine_type: [3_axis_cnc_router]
+      NOT_applicable_to: [solid_wood, plywood_grain_sensitive]
+    source: "Material heuristic; MDF/particleboard fibre integrity"
+    confidence_ceiling: 0.70
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-003"
+    version: "v0.1.0"
+    name: "tool_radius_corner_feasibility"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "machine_heuristic"
+    severity: "ERROR"
+    applies_to: ["pocket_features", "groove_features"]
+    parameters:
+      min_tool_radius_mm: 3.0
+    description: "Internal pocket corners cannot be sharper than the minimum tool radius. A CNC router cannot cut perfect 90-degree internal corners. For each pocket contour, flag if corner_radius < min_tool_radius_mm."
+    domain_applicability:
+      material: [MDF, particleboard, plywood, melamine_particleboard]
+      machine_type: [3_axis_cnc_router]
+      NOT_applicable_to: [high_speed_milling]
+    source: "Fundamental CNC routing constraint; assumes 6mm diameter router bit minimum"
+    standards_refs:
+      - standard: "ISO 1101:2017"
+        description: "Geometrical tolerancing; corner form tolerances"
+    confidence_ceiling: 0.65
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-004"
+    version: "v0.1.0"
+    name: "minimum_pocket_width"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "machine_heuristic"
+    severity: "ERROR"
+    applies_to: ["LWPOLYLINE"]
+    parameters:
+      default_tool_diameter_mm: 6.0
+      min_pocket_width_ratio: 1.2
+    description: "The minimum inscribed circle diameter of a pocket contour must be >= tool_diameter x 1.2. A 6mm tool cannot route a pocket narrower than 7.2mm."
+    domain_applicability:
+      material: [MDF, particleboard, plywood, melamine_particleboard]
+      machine_type: [3_axis_cnc_router]
+    source: "CNC routing geometry; tool cannot fit in narrower pocket"
+    confidence_ceiling: 0.65
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-005"
+    version: "v0.1.0"
+    name: "shelf_pin_hole_grid_alignment"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "standards_derived"
+    severity: "WARNING"
+    applies_to: ["CIRCLE"]
+    parameters:
+      shelf_pin_diameter_mm: 5.0
+      shelf_pin_spacing_mm: 32.0
+      shelf_pin_tolerance_mm: 0.5
+      diameter_tolerance_mm: 0.5
+    description: "CIRCLE entities with diameter = 5mm +/- 0.5mm that form a collinear group are checked for 32mm spacing. Deviation > 0.5mm from the 32mm grid triggers WARNING."
+    source: "European 32mm system (Rasterbohrsystem); DIN 68xxx cabinet hardware"
+    standards_refs:
+      - standard: "DIN 68xxx"
+        description: "European cabinet hardware system; 32mm grid"
+    confidence_ceiling: 0.90
+    adjustable: false
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-006"
+    version: "v0.1.0"
+    name: "hinge_cup_edge_distance"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "hardware_spec"
+    severity: "WARNING"
+    applies_to: ["CIRCLE"]
+    parameters:
+      hinge_cup_diameter_mm: 35.0
+      hinge_cup_edge_distance_mm: 22.5
+      hinge_cup_tolerance_mm: 1.0
+      diameter_tolerance_mm: 1.0
+    description: "CIRCLE entities with diameter = 35mm +/- 1mm are checked for edge distance = 22.5mm +/- 1.0mm. This is the Blum CLIP top hinge cup standard."
+    source: "Blum CLIP top standard; Blum motion technology catalog"
+    confidence_ceiling: 0.90
+    adjustable: false
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-007"
+    version: "v0.1.0"
+    name: "maximum_blind_feature_depth"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "material_heuristic"
+    severity: "WARNING"
+    applies_to: ["LWPOLYLINE"]
+    parameters:
+      max_blind_depth_ratio: 0.75
+      default_panel_thickness_mm: 18.0
+    description: "Blind feature depth must not exceed 75% of panel thickness. DXF geometry is 2D so depth information is often unavailable; rule is skipped if no depth metadata present."
+    domain_applicability:
+      material: [MDF, particleboard, melamine_particleboard]
+      machine_type: [3_axis_cnc_router]
+    source: "CNC routing practice; structural floor thickness"
+    confidence_ceiling: 0.70
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-008"
+    version: "v0.1.0"
+    name: "feature_density_check"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "material_heuristic"
+    severity: "WARNING"
+    applies_to: ["panel_level"]
+    parameters:
+      max_hole_coverage_ratio: 0.30
+    description: "Total hole area as a fraction of panel area must not exceed 30%. MDF/particleboard panels lose structural integrity above ~30% hole coverage."
+    domain_applicability:
+      material: [MDF, particleboard, melamine_particleboard]
+      machine_type: [3_axis_cnc_router]
+    source: "Structural rule of thumb; MDF/particleboard panels lose structural integrity above ~30% hole coverage"
+    confidence_ceiling: 0.70
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-009"
+    version: "v0.1.0"
+    name: "minimum_panel_dimensions"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "shop_convention"
+    severity: "WARNING"
+    applies_to: ["panel_boundary"]
+    parameters:
+      min_dimension_mm: 50.0
+      max_dimension_mm: 3600.0
+      min_area_mm2: 5000.0
+    description: "Panel must be within processable range. Panels smaller than 50mm in any dimension are typically manually processed. Maximum 3600mm matches standard nesting table."
+    source: "Practical CNC nesting table minimum; standard nesting table sizes"
+    confidence_ceiling: 0.75
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-010"
+    version: "v0.1.0"
+    name: "confirmat_screw_pair_positioning"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "hardware_spec"
+    severity: "INFO"
+    applies_to: ["CONFIRMAT_HOLE"]
+    parameters: {}
+    description: "Confirmat holes on joining panels should be in matching pairs at corresponding positions. In single-panel analysis this rule is informational only -- it cannot be verified without the mating panel."
+    source: "Confirmat screw joining technique; HAFELE Confirmat specifications"
+    confidence_ceiling: 0.90
+    adjustable: false
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-011"
+    version: "v0.1.0"
+    name: "drill_diameter_range"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "shop_convention"
+    severity: "ERROR"
+    applies_to: ["CIRCLE"]
+    parameters:
+      min_hole_diameter_mm: 3.0
+      max_hole_diameter_mm: 40.0
+    description: "Circle diameter must be within [3.0mm, 40.0mm]. Holes smaller than 3mm require specialized micro-drill tooling not in scope for panel CNC. Holes larger than 40mm require routing operations."
+    source: "Tooling catalog limits; Leuco/Leitz drill specifications"
+    confidence_ceiling: 0.75
+    adjustable: true
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true
+
+  - rule_id: "MFG-012"
+    version: "v0.1.0"
+    name: "no_feature_on_sheet_edge"
+    category: "manufacturability"
+    layer: 2
+    rule_type: "shop_convention"
+    severity: "ERROR"
+    applies_to: ["CIRCLE", "LWPOLYLINE"]
+    parameters:
+      tolerance_mm: 0.1
+    description: "Feature centroid must NOT lie on the panel boundary polygon (within 0.1mm tolerance). A feature positioned exactly on the boundary creates machining ambiguity -- the CNC controller cannot determine whether to cut inside or outside."
+    source: "CNC machining practice; ambiguous cut direction at exact boundary"
+    confidence_ceiling: 0.75
+    adjustable: false
+    expert_reviewed: false
+    status: "active"
+    added_in_version: "v0.1.0"
+    enabled: true

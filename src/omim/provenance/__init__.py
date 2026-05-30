@@ -1,5 +1,19 @@
 """Provenance tracking for inference decisions."""
 
-from omim.provenance.tracker import ProvenanceTracker, ProvenanceRecord
+from omim.provenance.models import (
+    EvidenceItem,
+    EvidenceType,
+    InferenceMethod,
+    ProvenanceRecord,
+    ReviewStatus,
+)
+from omim.provenance.tracker import ProvenanceTracker
 
-__all__ = ["ProvenanceTracker", "ProvenanceRecord"]
+__all__ = [
+    "ProvenanceTracker",
+    "ProvenanceRecord",
+    "InferenceMethod",
+    "ReviewStatus",
+    "EvidenceItem",
+    "EvidenceType",
+]

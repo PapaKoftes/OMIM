@@ -1,0 +1,38 @@
+# Material Definitions — Manufacturing Ontology
+# Version: v0.1.0
+# Source: 04_ONTOLOGY/Manufacturing_Ontology.md
+# 5 materials
+
+version: "v0.1.0"
+domain: "panel_manufacturing_2.5d"
+
+materials:
+  MDF:
+    name: "Medium Density Fiberboard"
+    standard: "EN 622-5"
+    typical_thickness_mm: [9, 12, 15, 18, 22, 25]
+    notes: "Homogeneous, no grain direction."
+
+  PARTICLEBOARD:
+    name: "Particleboard"
+    standard: "EN 309 / EN 312"
+    typical_thickness_mm: [9, 12, 15, 18, 22, 25]
+    notes: ""
+
+  PLYWOOD:
+    name: "Plywood"
+    standard: "EN 636"
+    typical_thickness_mm: [6, 9, 12, 15, 18, 21, 24]
+    notes: "Has grain direction."
+
+  MELAMINE_COATED_PARTICLEBOARD:
+    name: "Melamine coated particleboard"
+    standard: ""
+    typical_thickness_mm: []
+    notes: "Edge banding typically required post-cut."
+
+  HDF:
+    name: "High Density Fiberboard"
+    standard: "EN 622-5"
+    typical_thickness_mm: [2, 3, 4, 6]
+    notes: "Thin back panels, drawer bottoms."

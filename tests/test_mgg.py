@@ -30,7 +30,7 @@ class TestMGGBuilder:
         hole = mgg.get_node("geom-201")
         assert hole is not None
         assert hole["diameter_mm"] == 5.0
-        assert hole["centroid"] == (37, 100)
+        assert hole["centroid"] == [37, 100]
         assert hole["area_mm2"] is not None
         assert hole["area_mm2"] > 0
 

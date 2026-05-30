@@ -30,10 +30,10 @@ def mgg_to_cytoscape(mgg: ManufacturingGeometryGraph) -> dict[str, Any]:
 
     for nid, data in mgg.graph.nodes(data=True):
         node_data = {"id": nid, **data}
-        # Add position from centroid if available
+        # Add position from centroid if available (list[float])
         position = None
         centroid = data.get("centroid")
-        if centroid:
+        if centroid and len(centroid) >= 2:
             position = {"x": centroid[0], "y": centroid[1]}
         entry: dict[str, Any] = {"data": node_data, "group": "nodes"}
         if position:

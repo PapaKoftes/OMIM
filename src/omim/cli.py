@@ -73,7 +73,7 @@ def _cmd_analyze(args) -> int:
         return 1
 
     mgg = MGGBuilder().build(result.geometry)
-    FeatureClassifier().classify(mgg)
+    annotations = FeatureClassifier().classify(mgg)
     report = RuleEngine().validate(mgg)
 
     if args.cytoscape:
@@ -93,9 +93,11 @@ def _cmd_analyze(args) -> int:
     else:
         print(text)
 
-    if report.has_errors:
+    if not report.overall_valid:
+        err_count = report.severity_summary.get("ERROR", 0)
+        warn_count = report.severity_summary.get("WARNING", 0)
         print(
-            f"\n{report.failed} error(s), {report.warnings} warning(s)",
+            f"\n{err_count} error(s), {warn_count} warning(s)",
             file=sys.stderr,
         )
         return 2  # Errors found but analysis succeeded
@@ -119,13 +121,16 @@ def _cmd_validate(args) -> int:
     mgg = MGGBuilder().build(result.geometry)
     report = RuleEngine().validate(mgg)
 
-    for r in report.results:
+    all_results = report.layer1_results + report.layer2_results
+    for r in all_results:
         if not r.passed:
-            severity = r.severity.value
-            print(f"[{severity}] {r.rule_id}: {r.message}")
+            print(f"[{r.severity}] {r.rule_id}: {r.message}")
 
-    print(f"\nTotal: {report.passed} passed, {report.failed} errors, {report.warnings} warnings")
-    return 2 if report.has_errors else 0
+    err_count = report.severity_summary.get("ERROR", 0)
+    warn_count = report.severity_summary.get("WARNING", 0)
+    passed_count = sum(1 for r in all_results if r.passed)
+    print(f"\nTotal: {passed_count} passed, {err_count} errors, {warn_count} warnings")
+    return 2 if not report.overall_valid else 0
 
 
 def _cmd_serve(args) -> int:

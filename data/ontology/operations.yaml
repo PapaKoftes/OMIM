@@ -1,23 +1,78 @@
 # CNC Operations Ontology — Panel Manufacturing
 # Version: v0.1.0
+# Source: 04_ONTOLOGY/Operation_Taxonomy.md
+# 4 operations — ENGRAVE explicitly excluded from v0.1.0
+
+version: "v0.1.0"
+domain: "panel_manufacturing_2.5d"
 
 operations:
-  - name: DRILL_THROUGH
-    tool_type: drill_bit
-    description: "Through-hole drilling (full panel thickness)"
+  - id: DRILLING
+    label: "Drilling"
+    description: "Vertical hole-making operation using rotating drill bit"
+    produces_features:
+      - THROUGH_HOLE
+      - BLIND_HOLE
+      - COUNTERSINK
+      - COUNTERBORE
+      - SHELF_PIN_HOLE
+      - HINGE_CUP_HOLE
+      - CONFIRMAT_HOLE
+      - DOWEL_HOLE
+    parameters:
+      - diameter
+      - depth
+      - RPM
+      - feed_rate
+      - tooling_type
+    machine_type: "Vertical CNC drill, multi-spindle drill, Drill+Router combo"
+    source: "Machining handbooks; ISO 15487 — Twist drills"
+    inference_rule: "Any circle entity -> likely requires DRILLING"
 
-  - name: DRILL_BLIND
-    tool_type: drill_bit
-    description: "Blind hole drilling (partial depth)"
+  - id: CNC_ROUTING
+    label: "CNC Routing"
+    description: "2.5D CNC milling/routing operation following a defined path"
+    produces_features:
+      - POCKET
+      - GROOVE
+      - DADO
+      - RABBET
+      - OPEN_SLOT
+      - THROUGH_POCKET
+    parameters:
+      - path
+      - depth
+      - tool_diameter
+      - RPM
+      - feed_rate
+      - passes
+    machine_type: "CNC router (3-axis)"
+    source: "CNC routing fundamentals"
+    inference_rule: "Any non-circular closed/open milled contour -> likely CNC_ROUTING"
 
-  - name: ROUTE_CONTOUR
-    tool_type: router_bit
-    description: "Contour routing along a profile path"
+  - id: PROFILE_CUTTING
+    label: "Profile Cutting"
+    description: "Following outer or inner profile contour to cut out the panel shape"
+    produces_features:
+      - PROFILE_CUT
+      - INTERNAL_CUTOUT
+    parameters:
+      - contour
+      - depth_through
+      - tool_diameter
+      - tabs_bridges
+    machine_type: "CNC router (3-axis)"
+    source: "CNC routing fundamentals"
+    inference_rule: "Outermost contour or closed internal cutout -> PROFILE_CUTTING"
 
-  - name: ROUTE_POCKET
-    tool_type: router_bit
-    description: "Pocket routing — area material removal"
-
-  - name: ENGRAVE
-    tool_type: engraving_bit
-    description: "Surface engraving / marking (no material removal at depth)"
+  - id: NESTING
+    label: "Nesting"
+    description: "Placement optimization of multiple panel profiles onto a sheet (pre-processing step, not a machining operation)"
+    produces_features: []
+    parameters:
+      - panel_set
+      - sheet_dimensions
+      - material_grain
+    machine_type: "N/A (software operation)"
+    source: "Nesting theory; OpenNest; SVGnest; DeepNest"
+    inference_rule: "Any panel with a PROFILE_CUT requires NESTING consideration"

@@ -1,0 +1,48 @@
+# Relationship Types — Manufacturing Ontology
+# Version: v0.1.0
+# Source: 04_ONTOLOGY/Manufacturing_Ontology.md
+# 10 relationship types
+
+version: "v0.1.0"
+domain: "panel_manufacturing_2.5d"
+
+relationships:
+  - id: CONTAINS
+    direction: "panel -> feature"
+    description: "Panel contains this feature (Shapely containment)"
+
+  - id: DEPENDS_ON
+    direction: "operation_A -> operation_B"
+    description: "Operation A must execute before operation B"
+
+  - id: CONFLICTS_WITH
+    direction: "feature_A <-> feature_B"
+    description: "Features overlap or violate spacing constraints"
+
+  - id: ADJACENT_TO
+    direction: "feature_A <-> feature_B"
+    description: "Features are geometrically near each other (proximity threshold)"
+
+  - id: REQUIRES_TOOLING
+    direction: "feature -> tool_spec"
+    description: "Feature requires specific tooling"
+
+  - id: SAME_GROUP
+    direction: "feature_A <-> feature_B"
+    description: "Features belong to same logical group"
+
+  - id: SAME_ROW
+    direction: "hole_A <-> hole_B"
+    description: "Holes in same horizontal row (collinear)"
+
+  - id: SAME_COLUMN
+    direction: "hole_A <-> hole_B"
+    description: "Holes in same vertical column (collinear)"
+
+  - id: ENABLES
+    direction: "feature_A -> operation_B"
+    description: "Feature presence enables or suggests an operation"
+
+  - id: PRODUCED_BY
+    direction: "feature -> operation"
+    description: "Feature is produced by this operation"

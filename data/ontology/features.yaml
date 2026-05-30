@@ -1,61 +1,404 @@
 # Manufacturing Feature Ontology — Panel CNC Machining
-# Domain: Cabinetry (MDF, plywood, melamine)
+# Domain: Cabinetry (MDF, plywood, melamine, particleboard)
 # Version: v0.1.0
+# Source: 04_ONTOLOGY/Feature_Taxonomy.md
+# 14 feature types + UNKNOWN_FEATURE
+
+version: "v0.1.0"
+domain: "panel_manufacturing_2.5d"
 
 features:
-  - name: SHELF_PIN_HOLE
-    category: fastener
-    description: "5mm hole for shelf support pins (Bodenträger)"
-    typical_diameter_mm: [4.8, 5.2]
-    typical_depth_mm: [10.0, 13.0]
-    operations: [DRILL_THROUGH, DRILL_BLIND]
+  # =========================================================================
+  # HOLE_FEATURES
+  # =========================================================================
 
-  - name: DOWEL_HOLE
-    category: fastener
-    description: "8mm hole for wooden dowel joints"
-    typical_diameter_mm: [7.8, 8.2]
-    typical_depth_mm: [10.0, 30.0]
-    operations: [DRILL_BLIND]
+  - id: THROUGH_HOLE
+    label: "Through Hole"
+    category: HOLE_FEATURES
+    description: "Circular cutout passing completely through the panel"
+    detection:
+      geometry_type: circle
+      diameter_range_mm: [2.0, 60.0]
+    confidence:
+      single_hole: 0.70
+      confirmed_pattern: 0.90
+    inference_method: "heuristic_diameter_exclusion"
+    sources:
+      - "ANSI/ASME Y14.5"
+    operation: DRILLING
+    parameters:
+      diameter_mm: null
+      depth_mm: "through"
+      tolerance_mm: 0.1
 
-  - name: EURO_SCREW_HOLE
-    category: fastener
-    description: "15mm hole for Euroschraube / confirmat screws"
-    typical_diameter_mm: [14.5, 15.5]
-    typical_depth_mm: [10.0, 12.0]
-    operations: [DRILL_BLIND]
+  - id: BLIND_HOLE
+    label: "Blind Hole"
+    category: HOLE_FEATURES
+    description: "Circular hole that does not pass completely through the panel"
+    detection:
+      geometry_type: circle
+      requires_depth_metadata: true
+    confidence:
+      single_hole: 0.50
+      confirmed_pattern: 0.80
+    inference_method: "heuristic_depth_context"
+    sources: []
+    operation: DRILLING
+    parameters:
+      diameter_mm: null
+      depth_mm: null
+      tolerance_mm: 0.1
 
-  - name: SYSTEM_HOLE_20MM
-    category: system
-    description: "20mm system hole for 32mm system drilling"
-    typical_diameter_mm: [19.5, 20.5]
-    typical_depth_mm: [10.0, 13.0]
-    operations: [DRILL_BLIND]
+  - id: COUNTERSINK
+    label: "Countersink"
+    category: HOLE_FEATURES
+    description: "Conical enlargement at top of hole for flush fastener seating (flat-head screw recesses)"
+    detection:
+      geometry_type: circle
+      concentric: true
+      outer_inner_ratio: 2.0
+    confidence:
+      single_hole: 0.75
+      confirmed_pattern: 0.90
+    inference_method: "heuristic_concentric_geometry"
+    sources:
+      - "ISO 10642:2004 (hexagon socket countersunk head screws)"
+    operation: DRILLING
+    parameters:
+      diameter_mm: null
+      depth_mm: null
+      tolerance_mm: 0.1
 
-  - name: CABLE_GROMMET_HOLE
-    category: functional
-    description: "25mm cable management grommet hole"
-    typical_diameter_mm: [25.0, 26.0]
-    typical_depth_mm: [18.0, 19.0]
-    operations: [DRILL_THROUGH]
+  - id: COUNTERBORE
+    label: "Counterbore"
+    category: HOLE_FEATURES
+    description: "Cylindrical (flat-bottomed) enlargement at top of hole for socket-head screws"
+    detection:
+      geometry_type: circle
+      concentric: true
+    confidence:
+      single_hole: 0.70
+      confirmed_pattern: 0.85
+    inference_method: "heuristic_concentric_geometry"
+    sources:
+      - "ISO 6194"
+    operation: DRILLING
+    parameters:
+      diameter_mm: null
+      depth_mm: null
+      tolerance_mm: 0.1
 
-  - name: HINGE_CUP_HOLE
-    category: hardware
-    description: "35mm cup hole for European concealed hinges"
-    typical_diameter_mm: [34.5, 35.5]
-    typical_depth_mm: [11.5, 13.5]
-    operations: [DRILL_BLIND]
+  - id: SHELF_PIN_HOLE
+    label: "Shelf Pin Hole"
+    category: HOLE_FEATURES
+    description: "Small hole for adjustable shelf support pins, following 32mm modular system"
+    detection:
+      geometry_type: circle
+      diameter_range_mm: [4.5, 5.5]
+      pattern: "32mm_grid"
+      min_count_for_pattern: 3
+    confidence:
+      single_hole: 0.75
+      confirmed_pattern: 0.92
+    inference_method: "heuristic_diameter_and_pattern"
+    sources:
+      - "European 32mm furniture system (Rasterbohrsystem)"
+      - "Blum shelf pin system"
+      - "DIN 68xxx furniture hardware series"
+    operation: DRILLING
+    parameters:
+      diameter_mm: 5.0
+      depth_mm: "12-15 (typically not through)"
+      tolerance_mm: 0.1
 
-  - name: GENERIC_DRILL_HOLE
-    category: generic
-    description: "Unclassified drill hole — diameter does not match known feature"
-    operations: [DRILL_THROUGH, DRILL_BLIND]
+  - id: HINGE_CUP_HOLE
+    label: "Hinge Cup Hole"
+    category: HOLE_FEATURES
+    description: "Large circular recess for concealed hinge cup (Blum/Grass style)"
+    detection:
+      geometry_type: circle
+      diameter_range_mm: [34.0, 36.0]
+      edge_distance_mm: 22.5
+    confidence:
+      single_hole: 0.88
+      confirmed_pattern: 0.96
+    inference_method: "hardware_spec"
+    sources:
+      - "Blum CLIP top BLUMOTION specification"
+      - "DIN 68xxx furniture hardware"
+    operation: DRILLING
+    parameters:
+      diameter_mm: 35.0
+      depth_mm: "11.5-13.5"
+      tolerance_mm: 0.5
 
-  - name: CONTOUR_CUT
-    category: machining
-    description: "Outer or inner contour cut / profile routing"
-    operations: [ROUTE_CONTOUR]
+  - id: CONFIRMAT_HOLE
+    label: "Confirmat Hole"
+    category: HOLE_FEATURES
+    description: "Stepped hole for Confirmat (Euro) screw fastener; 7mm body diameter"
+    detection:
+      geometry_type: circle
+      diameter_range_mm: [6.5, 7.5]
+      stepped: true
+    confidence:
+      single_hole: 0.80
+      confirmed_pattern: 0.92
+    inference_method: "hardware_spec"
+    sources:
+      - "HAFELE Confirmat screw specifications"
+    operation: DRILLING
+    parameters:
+      diameter_mm: 7.0
+      depth_mm: null
+      tolerance_mm: 0.5
 
-  - name: POCKET_ROUT
-    category: machining
-    description: "Pocket routing — material removal within a closed contour"
-    operations: [ROUTE_POCKET]
+  - id: DOWEL_HOLE
+    label: "Dowel Hole"
+    category: HOLE_FEATURES
+    description: "Cylindrical hole for wooden dowel alignment/joining"
+    detection:
+      geometry_type: circle
+      diameter_range_mm: [7.8, 10.2]
+    confidence:
+      single_hole: 0.70
+      confirmed_pattern: 0.85
+    inference_method: "heuristic_diameter_and_position"
+    sources:
+      - "ISO 10140 — Dowel pins"
+      - "DIN 7 — Dowel pins"
+    operation: DRILLING
+    parameters:
+      diameter_mm: 8.0
+      depth_mm: "10-30"
+      tolerance_mm: 0.2
+
+  - id: HARDWARE_HOLE
+    label: "Hardware Hole"
+    category: HOLE_FEATURES
+    description: "Generic hole for hardware mounting (handles, locks, etc.)"
+    detection:
+      geometry_type: circle
+      diameter_range_mm: [20.0, 50.0]
+    confidence:
+      single_hole: 0.50
+      confirmed_pattern: 0.70
+    inference_method: "heuristic_diameter_exclusion"
+    sources: []
+    operation: DRILLING
+    parameters:
+      diameter_mm: null
+      depth_mm: null
+      tolerance_mm: 0.5
+
+  # =========================================================================
+  # MILLED_FEATURES
+  # =========================================================================
+
+  - id: POCKET
+    label: "Pocket"
+    category: MILLED_FEATURES
+    description: "Bounded, closed milled recess that does not pass through the panel"
+    detection:
+      geometry_type: lwpolyline
+      is_closed: true
+      interior: true
+    confidence:
+      single_hole: 0.75
+      confirmed_pattern: 0.90
+    inference_method: "heuristic_contour_context"
+    sources:
+      - "CNC routing fundamentals"
+      - "Machinery's Handbook, pocket milling section"
+    operation: CNC_ROUTING
+    parameters:
+      depth_mm: null
+      tolerance_mm: 0.1
+
+  - id: THROUGH_POCKET
+    label: "Through Pocket"
+    category: MILLED_FEATURES
+    description: "Milled recess passing completely through (internal cutout via routing)"
+    detection:
+      geometry_type: lwpolyline
+      is_closed: true
+      interior: true
+      through: true
+    confidence:
+      single_hole: 0.85
+      confirmed_pattern: 0.95
+    inference_method: "heuristic_contour_context"
+    sources: []
+    operation: CNC_ROUTING
+    parameters:
+      depth_mm: "through"
+      tolerance_mm: 0.1
+
+  - id: GROOVE
+    label: "Groove"
+    category: MILLED_FEATURES
+    description: "Long, narrow linear or curved milled slot for joinery or panel insertion"
+    detection:
+      geometry_type: lwpolyline
+      aspect_ratio_min: 5.0
+      width_range_mm: [4.0, 15.0]
+    confidence:
+      single_hole: 0.75
+      confirmed_pattern: 0.90
+    inference_method: "heuristic_aspect_ratio"
+    sources:
+      - "Woodworking joinery"
+      - "DIN 68752 (tongue and groove boards)"
+    operation: CNC_ROUTING
+    parameters:
+      width_mm: null
+      depth_mm: "6-12"
+      tolerance_mm: 0.1
+
+  - id: DADO
+    label: "Dado"
+    category: MILLED_FEATURES
+    description: "Groove cut perpendicular to panel's primary dimension"
+    detection:
+      geometry_type: lwpolyline
+      perpendicular_to_long_axis: true
+    confidence:
+      single_hole: 0.65
+      confirmed_pattern: 0.85
+    inference_method: "heuristic_orientation"
+    sources: []
+    operation: CNC_ROUTING
+    parameters:
+      width_mm: null
+      depth_mm: null
+      tolerance_mm: 0.1
+
+  - id: RABBET
+    label: "Rabbet"
+    category: MILLED_FEATURES
+    description: "L-shaped notch along panel edge or end"
+    detection:
+      geometry_type: lwpolyline
+      open_sided: true
+      edge_aligned: true
+    confidence:
+      single_hole: 0.75
+      confirmed_pattern: 0.88
+    inference_method: "heuristic_edge_context"
+    sources: []
+    operation: CNC_ROUTING
+    parameters:
+      width_mm: null
+      depth_mm: null
+      tolerance_mm: 0.1
+
+  - id: OPEN_SLOT
+    label: "Open Slot"
+    category: MILLED_FEATURES
+    description: "Open-ended slot milled from panel edge inward"
+    detection:
+      geometry_type: lwpolyline
+      open_ended: true
+    confidence:
+      single_hole: 0.78
+      confirmed_pattern: 0.90
+    inference_method: "heuristic_contour_context"
+    sources: []
+    operation: CNC_ROUTING
+    parameters:
+      width_mm: null
+      depth_mm: null
+      tolerance_mm: 0.1
+
+  # =========================================================================
+  # PROFILE_FEATURES
+  # =========================================================================
+
+  - id: PROFILE_CUT
+    label: "Profile Cut"
+    category: PROFILE_FEATURES
+    description: "Outer boundary cut producing final panel shape; every panel has exactly one"
+    detection:
+      geometry_type: lwpolyline
+      is_closed: true
+      outermost_contour: true
+    confidence:
+      single_hole: 0.95
+      confirmed_pattern: 0.99
+    inference_method: "deterministic"
+    sources: []
+    operation: PROFILE_CUTTING
+    parameters:
+      depth_mm: "through"
+      tolerance_mm: 0.1
+
+  - id: INTERNAL_CUTOUT
+    label: "Internal Cutout"
+    category: PROFILE_FEATURES
+    description: "Closed internal profile cut (creates window/opening in panel)"
+    detection:
+      geometry_type: lwpolyline
+      is_closed: true
+      interior: true
+      on_cut_layer: true
+    confidence:
+      single_hole: 0.88
+      confirmed_pattern: 0.96
+    inference_method: "heuristic_contour_context"
+    sources: []
+    operation: PROFILE_CUTTING
+    parameters:
+      depth_mm: "through"
+      tolerance_mm: 0.1
+
+  - id: CHAMFER
+    label: "Chamfer"
+    category: PROFILE_FEATURES
+    description: "Angled cut removing a corner (45 degrees standard)"
+    detection:
+      geometry_type: line
+      diagonal_at_corner: true
+    confidence:
+      single_hole: 0.70
+      confirmed_pattern: 0.85
+    inference_method: "heuristic_corner_geometry"
+    sources:
+      - "ISO 286"
+    operation: CNC_ROUTING
+    parameters:
+      angle_degrees: 45
+      tolerance_mm: 0.1
+
+  - id: FILLET
+    label: "Fillet"
+    category: PROFILE_FEATURES
+    description: "Rounded corner (concave arc at internal corner)"
+    detection:
+      geometry_type: arc
+      at_internal_corner: true
+    confidence:
+      single_hole: 0.75
+      confirmed_pattern: 0.88
+    inference_method: "heuristic_corner_geometry"
+    sources:
+      - "ISO 2768"
+    operation: CNC_ROUTING
+    parameters:
+      radius_mm: null
+      tolerance_mm: 0.1
+
+  # =========================================================================
+  # SPECIAL
+  # =========================================================================
+
+  - id: UNKNOWN_FEATURE
+    label: "Unknown Feature"
+    category: ""
+    description: "No hypothesis exceeds confidence threshold of 0.30; flags for human review"
+    detection: {}
+    confidence:
+      single_hole: 0.0
+      confirmed_pattern: 0.0
+    inference_method: "none"
+    sources: []
+    operation: ""
+    parameters: {}

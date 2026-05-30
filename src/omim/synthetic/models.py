@@ -40,6 +40,15 @@ class PanelGeneratorConfig(BaseModel):
     # the generation pipeline is byte-reproducible. A constant, NOT now().
     generation_timestamp: str = "2026-01-01T00:00:00+00:00"
 
+    # --- Opt-in noise / perturbation augmentation (see synthetic/noise.py) ---
+    # All default to OFF so the clean pipeline stays byte-reproducible and every
+    # existing test is unchanged. When enabled, perturbations are driven by the
+    # same per-sample seeded rng, so noisy output is reproducible too.
+    diameter_noise_sigma_mm: float = 0.0  # Gaussian jitter (mm) on circle diameters
+    layer_noise: bool = False             # rename layers to realistic aliases
+    duplicate_entity_prob: float = 0.0    # per-feature near-duplicate probability
+    rotation_deg: float = 0.0             # rigid rotation of all geometry (deg)
+
 
 class PanelSpec(BaseModel):
     """Generated panel geometry specification (ground truth)."""

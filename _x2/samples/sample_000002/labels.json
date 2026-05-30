@@ -1,0 +1,231 @@
+{
+  "$schema": "omim-labels-v0.1.0",
+  "sample_id": "sample_000002",
+  "schema_version": "v0.1.0",
+  "is_valid": false,
+  "injected_violations": [
+    "MFG-011",
+    "MFG-003",
+    "MFG-004"
+  ],
+  "panel": {
+    "width_mm": 450.0,
+    "height_mm": 720.0,
+    "thickness_mm": 25.0,
+    "area_mm2": 324000.0,
+    "material": "MDF",
+    "panel_type": "generic"
+  },
+  "features": [
+    {
+      "feature_id": "sample_000002_feat_000",
+      "feature_class": "PROFILE_CUT",
+      "diameter_mm": null,
+      "depth_mm": null,
+      "position_mm": [
+        180.0,
+        288.0
+      ],
+      "group_id": null,
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_001",
+      "feature_class": "THROUGH_HOLE",
+      "diameter_mm": 27.419634899780956,
+      "depth_mm": null,
+      "position_mm": [
+        234.67829115851566,
+        155.4090588068247
+      ],
+      "group_id": null,
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_002",
+      "feature_class": "SHELF_PIN_HOLE",
+      "diameter_mm": 1.534720912220141,
+      "depth_mm": null,
+      "position_mm": [
+        413.0,
+        37.0
+      ],
+      "group_id": "shelfpin-087241",
+      "is_valid": false,
+      "violations": [
+        "MFG-011"
+      ],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_003",
+      "feature_class": "SHELF_PIN_HOLE",
+      "diameter_mm": 4.915116069895787,
+      "depth_mm": null,
+      "position_mm": [
+        413.0,
+        69.0
+      ],
+      "group_id": "shelfpin-087241",
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_004",
+      "feature_class": "SHELF_PIN_HOLE",
+      "diameter_mm": 5.038861440549119,
+      "depth_mm": null,
+      "position_mm": [
+        413.0,
+        101.0
+      ],
+      "group_id": "shelfpin-087241",
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_005",
+      "feature_class": "SHELF_PIN_HOLE",
+      "diameter_mm": 4.95802750558325,
+      "depth_mm": null,
+      "position_mm": [
+        413.0,
+        133.0
+      ],
+      "group_id": "shelfpin-087241",
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_006",
+      "feature_class": "SHELF_PIN_HOLE",
+      "diameter_mm": 4.978911217805778,
+      "depth_mm": null,
+      "position_mm": [
+        413.0,
+        165.0
+      ],
+      "group_id": "shelfpin-087241",
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_007",
+      "feature_class": "SHELF_PIN_HOLE",
+      "diameter_mm": 5.072166996712458,
+      "depth_mm": null,
+      "position_mm": [
+        413.0,
+        197.0
+      ],
+      "group_id": "shelfpin-087241",
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_008",
+      "feature_class": "SHELF_PIN_HOLE",
+      "diameter_mm": 4.9967758556086554,
+      "depth_mm": null,
+      "position_mm": [
+        413.0,
+        229.0
+      ],
+      "group_id": "shelfpin-087241",
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_009",
+      "feature_class": "HINGE_CUP_HOLE",
+      "diameter_mm": 34.99060550995107,
+      "depth_mm": null,
+      "position_mm": [
+        22.5,
+        334.0268535373523
+      ],
+      "group_id": null,
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_010",
+      "feature_class": "HINGE_CUP_HOLE",
+      "diameter_mm": 35.09196307357367,
+      "depth_mm": null,
+      "position_mm": [
+        22.5,
+        441.93187167633147
+      ],
+      "group_id": null,
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000002_feat_011",
+      "feature_class": "INTERNAL_CUTOUT",
+      "diameter_mm": null,
+      "depth_mm": null,
+      "position_mm": [
+        378.415939362781,
+        190.67765018126414
+      ],
+      "group_id": null,
+      "is_valid": false,
+      "violations": [
+        "MFG-003",
+        "MFG-004"
+      ],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    }
+  ],
+  "feature_counts": {
+    "PROFILE_CUT": 1,
+    "THROUGH_HOLE": 1,
+    "SHELF_PIN_HOLE": 7,
+    "HINGE_CUP_HOLE": 2,
+    "INTERNAL_CUTOUT": 1
+  },
+  "operations": [
+    "DRILLING",
+    "PROFILE_CUTTING"
+  ],
+  "complexity": "medium",
+  "split": "train"
+}

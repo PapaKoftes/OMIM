@@ -52,22 +52,68 @@ PANEL_TYPE_ALLOWED_FEATURES: dict[str, list[str]] = {
         "DOWEL_HOLE",
         "CONFIRMAT_HOLE",
         "THROUGH_HOLE",
+        "BLIND_HOLE",
+        "GROOVE",
+        "DADO",
+        "RABBET",
+        "POCKET",
     ],
-    "door": ["HINGE_CUP_HOLE", "THROUGH_HOLE"],
-    "shelf": ["THROUGH_HOLE", "DOWEL_HOLE"],
-    "back_panel": ["THROUGH_HOLE"],
-    "bottom_top": ["DOWEL_HOLE", "CONFIRMAT_HOLE", "THROUGH_HOLE"],
+    "door": ["HINGE_CUP_HOLE", "THROUGH_HOLE", "POCKET", "INTERNAL_CUTOUT", "COUNTERSINK"],
+    "shelf": ["THROUGH_HOLE", "DOWEL_HOLE", "GROOVE", "DADO", "RABBET", "BLIND_HOLE"],
+    "back_panel": ["THROUGH_HOLE", "GROOVE", "INTERNAL_CUTOUT"],
+    "bottom_top": [
+        "DOWEL_HOLE",
+        "CONFIRMAT_HOLE",
+        "THROUGH_HOLE",
+        "GROOVE",
+        "RABBET",
+        "OPEN_SLOT",
+    ],
     "generic": ["ALL"],
 }
 
 # Every concrete feature class the generator can place (used when panel allows "ALL").
 ALL_FEATURE_CLASSES: list[str] = [
+    # Hole features (dominant population)
     "SHELF_PIN_HOLE",
     "HINGE_CUP_HOLE",
     "DOWEL_HOLE",
     "CONFIRMAT_HOLE",
     "THROUGH_HOLE",
+    "BLIND_HOLE",
+    "COUNTERSINK",
+    "COUNTERBORE",
+    # Milled features (less common)
+    "POCKET",
+    "THROUGH_POCKET",
+    "GROOVE",
+    "DADO",
+    "RABBET",
+    "OPEN_SLOT",
+    # Profile features
+    "INTERNAL_CUTOUT",
 ]
+
+# Relative sampling weight per class (used for the weighted per-feature draw).
+# Holes dominate; milled/profile features are deliberately rarer
+# (Dataset_Distribution_Policy). Classes absent here default to weight 1.0.
+FEATURE_CLASS_WEIGHTS: dict[str, float] = {
+    "SHELF_PIN_HOLE": 6.0,
+    "HINGE_CUP_HOLE": 4.0,
+    "DOWEL_HOLE": 5.0,
+    "CONFIRMAT_HOLE": 4.0,
+    "THROUGH_HOLE": 6.0,
+    "BLIND_HOLE": 2.0,
+    "COUNTERSINK": 1.5,
+    "COUNTERBORE": 1.5,
+    "POCKET": 1.4,
+    "THROUGH_POCKET": 1.0,
+    "GROOVE": 1.5,
+    "DADO": 1.2,
+    "RABBET": 1.4,
+    "OPEN_SLOT": 1.0,
+    "INTERNAL_CUTOUT": 1.0,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -127,9 +173,32 @@ def sample_hole_count(panel_type: str, rng: np.random.Generator) -> int:
     return int(max(HOLE_COUNT_MIN, min(HOLE_COUNT_MAX, count)))
 
 
+# Milled / profile features are occasional: most panels have 0-2 of them. A low
+# Poisson mean keeps them rarer than holes while ensuring non-trivial counts
+# accumulate across a dataset.
+MILLED_COUNT_LAMBDA = 1.2
+MILLED_COUNT_MAX = 4
+
+
+def sample_milled_count(rng: np.random.Generator) -> int:
+    """Sample how many milled/profile features a panel gets (small, Poisson)."""
+    count = int(rng.poisson(MILLED_COUNT_LAMBDA))
+    return int(max(0, min(MILLED_COUNT_MAX, count)))
+
+
 def allowed_feature_classes(panel_type: str) -> list[str]:
     """Return the concrete feature classes allowed for *panel_type* (R-004)."""
     allowed = PANEL_TYPE_ALLOWED_FEATURES.get(panel_type, ["ALL"])
     if allowed == ["ALL"]:
         return list(ALL_FEATURE_CLASSES)
     return list(allowed)
+
+
+def sample_feature_class(allowed: list[str], rng: np.random.Generator) -> str:
+    """Sample one feature class from *allowed* using FEATURE_CLASS_WEIGHTS.
+
+    Weighting keeps holes dominant while still letting rarer milled/profile
+    features appear. Classes absent from the weight table fall back to 1.0.
+    """
+    weights = [FEATURE_CLASS_WEIGHTS.get(c, 1.0) for c in allowed]
+    return str(sample_from_distribution(allowed, weights, rng))

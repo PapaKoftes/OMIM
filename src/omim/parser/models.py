@@ -2,6 +2,37 @@
 
 from pydantic import BaseModel, Field
 
+# Default layer-name prefix -> inferred operation type map (case-insensitive,
+# prefix-matched). Exposed here so a ParserConfig can override it.
+DEFAULT_LAYER_MAP: dict[str, list[str]] = {
+    "cut": ["CUT", "CUT_", "PROFILE", "OUTLINE", "OUTER", "CONTOUR"],
+    "drill": ["DRILL", "HOLE", "BORE", "PUNCH"],
+    "pocket": ["POCKET", "GROOVE", "SLOT", "DADO", "RABBET"],
+    "border": ["BORDER", "SHEET", "STOCK", "MATERIAL"],
+    "engrave": ["ENGRAVE", "ETCH", "SCORE"],
+}
+
+
+class ParserConfig(BaseModel):
+    """Tunable parser behaviour (see docs/03_INTERFACES/Parser_Interface.md)."""
+
+    supported_dxf_versions: list[str] = Field(
+        default_factory=lambda: [
+            "AC1015", "AC1018", "AC1021", "AC1024", "AC1027", "AC1032",
+        ]
+    )
+    max_file_size_bytes: int = 50 * 1024 * 1024  # 50MB
+    target_units: str = "mm"
+    layer_conventions: dict[str, list[str]] = Field(
+        default_factory=lambda: {k: list(v) for k, v in DEFAULT_LAYER_MAP.items()}
+    )
+    # Number of segments used to approximate a SPLINE/ELLIPSE as a polyline.
+    spline_approximation_segments: int = 50
+    # Explode simple INSERT (block reference) entities into their primitives.
+    explode_inserts: bool = True
+    # Max INSERT nesting depth to explode (guards against pathological recursion).
+    max_insert_depth: int = 5
+
 
 class RawEntity(BaseModel):
     """A single geometric entity extracted from a DXF file."""

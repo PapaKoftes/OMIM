@@ -1,0 +1,30 @@
+{
+  "$schema": "omim-provenance-v0.1.0",
+  "sample_id": "mgg-4d431b386198",
+  "schema_version": "v0.1.0",
+  "pipeline_stages": [
+    {
+      "stage": "synthetic_generator",
+      "inference_method": "synthetic",
+      "confidence": 1.0
+    },
+    {
+      "stage": "parser",
+      "inference_method": "deterministic",
+      "confidence": 1.0,
+      "source_file_hash": "sha256:4d431b3861983d12ccb4c485490e8eff9844ae6d789124811ef816d247c542d5"
+    },
+    {
+      "stage": "graph_builder",
+      "inference_method": "deterministic",
+      "confidence": 1.0
+    },
+    {
+      "stage": "validation",
+      "inference_method": "deterministic",
+      "confidence": 1.0,
+      "ruleset_version": "v0.1.0"
+    }
+  ],
+  "dataset_version": "omim-synthetic-v0.1.0"
+}

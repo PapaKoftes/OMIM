@@ -17,6 +17,14 @@ from datetime import UTC, datetime
 
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.ontology.loader import Ontology
+from omim.semantic.calibration import (
+    RULE_TYPE_CONFIDENCE_CEILINGS,
+    THROUGH_HOLE_MAX_MM,
+    THROUGH_HOLE_MIN_MM,
+    apply_confidence_threshold,
+    compute_hole_classification_confidence,
+    compute_through_hole_confidence,
+)
 from omim.semantic.models import (
     AlternativeHypothesis,
     FeatureAnnotation,
@@ -27,15 +35,17 @@ from omim.semantic.models import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Confidence ceilings by inference method (per Trust Hierarchy Level 5)
+# Confidence ceilings by inference method (per Trust Hierarchy Level 5).
+# The authoritative table lives in semantic.calibration; this view keeps the
+# rule types the classifier actually uses, sourced from that single table.
 # ---------------------------------------------------------------------------
 
 SEMANTIC_CONFIDENCE_CEILINGS = {
-    "hardware_spec": 0.90,  # Blum 35mm hinge cup -- well-defined
-    "standards_derived": 0.90,  # European 32mm system
-    "shop_convention": 0.75,  # Layer naming conventions
-    "material_heuristic": 0.70,  # Diameter range matching
-    "machine_heuristic": 0.65,  # Default classifications
+    "hardware_spec": RULE_TYPE_CONFIDENCE_CEILINGS["hardware_spec"],  # 0.90
+    "standards_derived": RULE_TYPE_CONFIDENCE_CEILINGS["standards_derived"],  # 0.95
+    "shop_convention": RULE_TYPE_CONFIDENCE_CEILINGS["shop_convention"],  # 0.75
+    "material_heuristic": RULE_TYPE_CONFIDENCE_CEILINGS["material_heuristic"],  # 0.70
+    "machine_heuristic": RULE_TYPE_CONFIDENCE_CEILINGS["machine_heuristic"],  # 0.65
 }
 
 # ---------------------------------------------------------------------------
@@ -298,10 +308,19 @@ class FeatureClassifier:
             and _is_close(diameter, 35.0, 1.0)
             and _layer_contains(layer, "HINGE")
         ):
+            ceiling = SEMANTIC_CONFIDENCE_CEILINGS["hardware_spec"]
+            confidence = compute_hole_classification_confidence(
+                diameter_mm=diameter,
+                expected_diameter_mm=35.0,
+                diameter_tolerance_mm=1.0,
+                context_match=True,  # HINGE layer keyword confirms context
+                pattern_match=False,
+                ceiling=ceiling,
+            )
             return self._make_annotation(
                 node_id=node_id,
                 feature_class="HINGE_CUP_HOLE",
-                confidence=0.90,
+                confidence=confidence,
                 evidence=[{
                     "type": "diameter_match",
                     "diameter_mm": diameter,
@@ -325,10 +344,19 @@ class FeatureClassifier:
             and edge_distance is not None
             and _is_close(edge_distance, 22.5, 2.0)
         ):
+            ceiling = SEMANTIC_CONFIDENCE_CEILINGS["hardware_spec"]
+            confidence = compute_hole_classification_confidence(
+                diameter_mm=diameter,
+                expected_diameter_mm=35.0,
+                diameter_tolerance_mm=1.0,
+                context_match=True,  # 22.5mm edge distance confirms Blum pattern
+                pattern_match=False,
+                ceiling=ceiling,
+            )
             return self._make_annotation(
                 node_id=node_id,
                 feature_class="HINGE_CUP_HOLE",
-                confidence=0.90,
+                confidence=confidence,
                 evidence=[{
                     "type": "diameter_match",
                     "diameter_mm": diameter,
@@ -349,10 +377,19 @@ class FeatureClassifier:
         if diameter is not None and _is_close(diameter, 5.0, 0.5):
             is_grid = self._check_32mm_grid(node_id, data, mgg)
             if is_grid:
+                ceiling = SEMANTIC_CONFIDENCE_CEILINGS["standards_derived"]
+                confidence = compute_hole_classification_confidence(
+                    diameter_mm=diameter,
+                    expected_diameter_mm=5.0,
+                    diameter_tolerance_mm=0.5,
+                    context_match=True,  # part of a 32mm grid
+                    pattern_match=True,  # confirmed row pattern (>=3 holes)
+                    ceiling=ceiling,
+                )
                 return self._make_annotation(
                     node_id=node_id,
                     feature_class="SHELF_PIN_HOLE",
-                    confidence=0.90,
+                    confidence=confidence,
                     evidence=[{
                         "type": "diameter_match",
                         "diameter_mm": diameter,
@@ -374,10 +411,19 @@ class FeatureClassifier:
             and _is_close(diameter, 7.0, 0.5)
             and _layer_contains(layer, "CONFIRMAT")
         ):
+            ceiling = SEMANTIC_CONFIDENCE_CEILINGS["hardware_spec"]
+            confidence = compute_hole_classification_confidence(
+                diameter_mm=diameter,
+                expected_diameter_mm=7.0,
+                diameter_tolerance_mm=0.5,
+                context_match=True,  # CONFIRMAT layer keyword confirms context
+                pattern_match=False,
+                ceiling=ceiling,
+            )
             return self._make_annotation(
                 node_id=node_id,
                 feature_class="CONFIRMAT_HOLE",
-                confidence=0.85,
+                confidence=confidence,
                 evidence=[{
                     "type": "diameter_match",
                     "diameter_mm": diameter,
@@ -400,10 +446,19 @@ class FeatureClassifier:
         # (material_heuristic ceiling 0.70) with THROUGH_HOLE as the alternative.
         # ---------------------------------------------------------------
         if diameter is not None and _is_close(diameter, 7.0, 0.3):
+            ceiling = SEMANTIC_CONFIDENCE_CEILINGS["material_heuristic"]
+            confidence = compute_hole_classification_confidence(
+                diameter_mm=diameter,
+                expected_diameter_mm=7.0,
+                diameter_tolerance_mm=0.3,
+                context_match=False,  # no layer keyword to confirm
+                pattern_match=False,
+                ceiling=ceiling,
+            )
             return self._make_annotation(
                 node_id=node_id,
                 feature_class="CONFIRMAT_HOLE",
-                confidence=0.70,
+                confidence=confidence,
                 evidence=[{
                     "type": "diameter_match",
                     "diameter_mm": diameter,
@@ -416,7 +471,7 @@ class FeatureClassifier:
                 alternatives=[
                     AlternativeHypothesis(
                         feature_class="THROUGH_HOLE",
-                        confidence=0.50,
+                        confidence=round(confidence * 0.7, 4),
                         reason=f"Could be a generic through hole at {diameter:.1f}mm",
                     ),
                 ],
@@ -428,17 +483,24 @@ class FeatureClassifier:
         if diameter is not None:
             for target in (8.0, 10.0):
                 if _is_close(diameter, target, 0.2):
-                    alternatives = []
-                    # Confidence 0.75 is at the threshold; provide alternatives
-                    alternatives.append(AlternativeHypothesis(
+                    ceiling = SEMANTIC_CONFIDENCE_CEILINGS["material_heuristic"]
+                    confidence = compute_hole_classification_confidence(
+                        diameter_mm=diameter,
+                        expected_diameter_mm=target,
+                        diameter_tolerance_mm=0.2,
+                        context_match=False,  # diameter-only; no position context
+                        pattern_match=False,
+                        ceiling=ceiling,
+                    )
+                    alternatives = [AlternativeHypothesis(
                         feature_class="THROUGH_HOLE",
-                        confidence=0.50,
+                        confidence=round(confidence * 0.7, 4),
                         reason=f"Could be a generic through hole at {diameter:.1f}mm",
-                    ))
+                    )]
                     return self._make_annotation(
                         node_id=node_id,
                         feature_class="DOWEL_HOLE",
-                        confidence=0.75,
+                        confidence=confidence,
                         evidence=[{
                             "type": "diameter_match",
                             "diameter_mm": diameter,
@@ -456,10 +518,36 @@ class FeatureClassifier:
         if geom_type == "circle" and (
             inferred_layer_type == "drill" or _layer_contains(layer, "DRILL")
         ):
+            ceiling = SEMANTIC_CONFIDENCE_CEILINGS["shop_convention"]
+            # Grade by how plausibly the diameter is a drilled through hole.
+            # A circle with no diameter at all keeps the (graded) ceiling, since
+            # the DRILL-layer convention alone is shop-convention evidence.
+            if diameter is None:
+                confidence = ceiling
+            else:
+                confidence = compute_through_hole_confidence(diameter, ceiling)
+            # Apply accept/flag/reject: an out-of-range diameter (e.g. 50mm too
+            # big to drill, or sub-3mm below the drill window) is relabelled
+            # UNKNOWN_FEATURE / flagged rather than asserted as a confident hole.
+            eff_class, review_status = apply_confidence_threshold(
+                "THROUGH_HOLE", confidence
+            )
+            alternatives: list[AlternativeHypothesis] = []
+            if eff_class == "UNKNOWN_FEATURE" and diameter is not None:
+                alternatives.append(AlternativeHypothesis(
+                    feature_class="THROUGH_HOLE",
+                    confidence=round(confidence, 4),
+                    reason=(
+                        f"Circle on a drill layer at {diameter:.1f}mm is outside "
+                        f"the manufacturable drill window "
+                        f"({THROUGH_HOLE_MIN_MM:.0f}-{THROUGH_HOLE_MAX_MM:.0f}mm); "
+                        f"too uncertain to assert as a through hole"
+                    ),
+                ))
             return self._make_annotation(
                 node_id=node_id,
-                feature_class="THROUGH_HOLE",
-                confidence=0.80,
+                feature_class=eff_class,
+                confidence=confidence,
                 evidence=[{
                     "type": "entity_type",
                     "entity_type": "CIRCLE",
@@ -467,19 +555,33 @@ class FeatureClassifier:
                     "type": "layer_match",
                     "layer": layer,
                     "inferred_type": "drill",
+                }, {
+                    "type": "diameter_grading",
+                    "diameter_mm": diameter,
+                    "manufacturable_window_mm": [THROUGH_HOLE_MIN_MM, THROUGH_HOLE_MAX_MM],
+                    "review_status": review_status,
                 }],
                 inference_method="shop_convention",
                 rule="P6: CIRCLE on DRILL layer",
+                alternatives=alternatives,
             )
 
         # ---------------------------------------------------------------
         # Priority 7: CIRCLE with no depth info, default
         # ---------------------------------------------------------------
         if geom_type == "circle":
+            ceiling = SEMANTIC_CONFIDENCE_CEILINGS["material_heuristic"]
+            if diameter is None:
+                confidence = ceiling
+            else:
+                confidence = compute_through_hole_confidence(diameter, ceiling)
+            eff_class, review_status = apply_confidence_threshold(
+                "THROUGH_HOLE", confidence
+            )
             alternatives = [
                 AlternativeHypothesis(
                     feature_class="BLIND_HOLE",
-                    confidence=0.40,
+                    confidence=round(confidence * 0.55, 4),
                     reason="Could be blind hole if depth metadata is available",
                 ),
             ]
@@ -499,14 +601,19 @@ class FeatureClassifier:
                 ))
             return self._make_annotation(
                 node_id=node_id,
-                feature_class="THROUGH_HOLE",
-                confidence=0.70,
+                feature_class=eff_class,
+                confidence=confidence,
                 evidence=[{
                     "type": "entity_type",
                     "entity_type": "CIRCLE",
                 }, {
                     "type": "default_classification",
                     "detail": "Circle with no depth info or specific layer",
+                }, {
+                    "type": "diameter_grading",
+                    "diameter_mm": diameter,
+                    "manufacturable_window_mm": [THROUGH_HOLE_MIN_MM, THROUGH_HOLE_MAX_MM],
+                    "review_status": review_status,
                 }],
                 inference_method="material_heuristic",
                 rule="P7: CIRCLE default",

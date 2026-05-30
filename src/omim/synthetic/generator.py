@@ -22,6 +22,7 @@ Provenance for the generation stage uses InferenceMethod.SYNTHETIC, confidence
 from __future__ import annotations
 
 import logging
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -50,6 +51,7 @@ from omim.synthetic.models import (
     PanelGeneratorConfig,
     PanelSpec,
 )
+from omim.synthetic.noise import apply_noise
 from omim.validation.rule_engine import RuleEngine
 
 logger = logging.getLogger(__name__)
@@ -60,6 +62,19 @@ GENERATOR_VERSION = "v0.1.0"
 _GROUP_GENERATORS = {
     "SHELF_PIN_HOLE": generate_shelf_pin_group,
     "CONFIRMAT_HOLE": generate_confirmat_pair,
+}
+
+# Milled + profile feature classes. Sampled in a separate, smaller pass so they
+# stay rarer than holes (Dataset_Distribution_Policy) yet always get a chance to
+# appear when the panel type permits them.
+_MILLED_OR_PROFILE_CLASSES = {
+    "POCKET",
+    "THROUGH_POCKET",
+    "GROOVE",
+    "DADO",
+    "RABBET",
+    "OPEN_SLOT",
+    "INTERNAL_CUTOUT",
 }
 
 
@@ -105,16 +120,35 @@ class PanelGenerator:
         # profile cut is always retained.
         features = self._grammar_filter(panel, features)
 
+        # --- Opt-in noise / perturbation augmentation (default OFF) ---
+        # Applied to the clean valid geometry BEFORE invalidation so violation
+        # injection still operates on detectable geometry. A pure no-op when every
+        # noise knob is at its default, so byte-reproducibility is preserved.
+        if self._noise_enabled():
+            features = apply_noise(
+                panel,
+                features,
+                sample_rng,
+                diameter_noise_sigma_mm=self.config.diameter_noise_sigma_mm,
+                layer_noise=self.config.layer_noise,
+                duplicate_entity_prob=self.config.duplicate_entity_prob,
+                rotation_deg=self.config.rotation_deg,
+            )
+
         injected: list[str] = []
         if is_invalid:
             n_violations = int(
                 sample_rng.integers(1, self.config.max_violations_per_invalid + 1)
             )
             features, injected = inject_violations(
-                panel, features, n_violations, sample_rng
+                panel,
+                features,
+                n_violations,
+                sample_rng,
+                verify=lambda feats: self._features_have_error(panel, feats),
             )
-            # If nothing could be injected, demote to a valid sample so the
-            # ground-truth label still matches the validator outcome.
+            # If nothing could be injected AND verified, demote to a valid sample
+            # so the ground-truth label still matches the validator outcome.
             if not injected:
                 is_invalid = False
 
@@ -162,32 +196,60 @@ class PanelGenerator:
     def _generate_features(
         self, panel: PanelSpec, rng: np.random.Generator
     ) -> list[FeatureSpec]:
-        """Generate features per the panel's allowed classes and hole count."""
+        """Generate features per the panel's allowed classes and hole count.
+
+        Two passes so the rarer milled/profile classes actually appear instead of
+        being starved by the fast-filling hole groups:
+
+          1. HOLE pass   — weighted draws of allowed hole classes until the
+             sampled circle target is met.
+          2. MILLED pass — a small, separately-sampled number of milled/profile
+             features (POCKET / GROOVE / DADO / RABBET / OPEN_SLOT /
+             THROUGH_POCKET / INTERNAL_CUTOUT), when the panel type permits them.
+        """
         allowed = dist.allowed_feature_classes(panel.panel_type)
-        target_count = dist.sample_hole_count(panel.panel_type, rng)
-        if target_count <= 0 or not allowed:
+        if not allowed:
             return []
 
+        allowed_holes = [c for c in allowed if c not in _MILLED_OR_PROFILE_CLASSES]
+        allowed_milled = [c for c in allowed if c in _MILLED_OR_PROFILE_CLASSES]
+
         features: list[FeatureSpec] = []
-        # Cap attempts so a constrained small panel cannot loop forever.
+
+        # --- Pass 1: holes ---
+        target_count = dist.sample_hole_count(panel.panel_type, rng)
         attempts = 0
         max_attempts = target_count * 4 + 8
 
         def _circle_count() -> int:
             return sum(1 for f in features if f.entity_type == "CIRCLE")
 
-        while _circle_count() < target_count and attempts < max_attempts:
+        while allowed_holes and _circle_count() < target_count and attempts < max_attempts:
             attempts += 1
-            feature_class = allowed[int(rng.integers(0, len(allowed)))]
-
+            feature_class = dist.sample_feature_class(allowed_holes, rng)
             if feature_class in _GROUP_GENERATORS:
-                group = _GROUP_GENERATORS[feature_class](panel, rng)
-                features.extend(group)
+                features.extend(_GROUP_GENERATORS[feature_class](panel, rng))
             elif feature_class in SINGLE_FEATURE_GENERATORS:
                 feat = SINGLE_FEATURE_GENERATORS[feature_class](panel, rng)
                 if feat is not None:  # E-001: placement may fail -> skip feature
                     features.append(feat)
-            # else: unknown class for this panel type -> ignore
+
+        # --- Pass 2: milled / profile features (rarer) ---
+        if allowed_milled:
+            milled_target = dist.sample_milled_count(rng)
+            m_attempts = 0
+            placed = 0
+            max_m_attempts = milled_target * 4 + 6
+            while placed < milled_target and m_attempts < max_m_attempts:
+                m_attempts += 1
+                feature_class = dist.sample_feature_class(allowed_milled, rng)
+                gen = SINGLE_FEATURE_GENERATORS.get(feature_class)
+                if gen is None:
+                    continue
+                feat = gen(panel, rng)
+                if feat is not None:
+                    features.append(feat)
+                    placed += 1
 
         return features
 
@@ -242,6 +304,46 @@ class PanelGenerator:
                 if within_panel(f, panel):
                     kept.append(f)
         return self._complete_shelf_pin_rows(kept)
+
+    # ------------------------------------------------------------------
+    # Noise + invalidation verification helpers
+    # ------------------------------------------------------------------
+
+    def _noise_enabled(self) -> bool:
+        """True iff any noise knob is set above its (clean) default."""
+        c = self.config
+        return bool(
+            (c.diameter_noise_sigma_mm and c.diameter_noise_sigma_mm > 0.0)
+            or c.layer_noise
+            or (c.duplicate_entity_prob and c.duplicate_entity_prob > 0.0)
+            or (c.rotation_deg and c.rotation_deg != 0.0)
+        )
+
+    def _features_have_error(
+        self, panel: PanelSpec, features: list[FeatureSpec]
+    ) -> bool:
+        """Run the FULL pipeline on a candidate feature set and report whether the
+        deterministic validator raises at least one ERROR / SYSTEM_ERROR.
+
+        Used by invalidation's verify-and-retry so an injected violation that does
+        NOT actually fire a validator ERROR is rolled back (closing the invalid-
+        yield leak). The check uses a throwaway temp DXF and does not touch any
+        kept artifact, so byte-reproducibility of the dataset is unaffected.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            dxf_path = Path(td) / "verify.dxf"
+            self.dxf_writer.write_panel(panel, features, dxf_path)
+            parse_result = self.parser.parse(dxf_path)
+            if not parse_result.success or parse_result.geometry is None:
+                # A parse failure (E-001) is itself a rejection -> treat as "error".
+                return True
+            parse_result.geometry.source_file = "geometry.dxf"
+            mgg = self.builder.build(
+                parse_result.geometry,
+                creation_timestamp=self.config.generation_timestamp,
+            )
+            report = self.rule_engine.validate(mgg, annotate_graph=False)
+            return not report.overall_valid
 
     # ------------------------------------------------------------------
     # Dataset generation (the gatekeeper loop)

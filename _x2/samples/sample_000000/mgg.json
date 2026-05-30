@@ -1,0 +1,730 @@
+{
+  "$schema": "omim-mgg-v0.1.0",
+  "omim_mgg_version": "v0.1.0",
+  "metadata": {
+    "graph_id": "mgg-f4941f2abb1f",
+    "spec_version": "v0.1.0",
+    "ontology_version": "v0.1.0",
+    "source_file": "geometry.dxf",
+    "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+    "panel_bbox": [
+      0.0,
+      0.0,
+      500.0,
+      2100.0
+    ],
+    "panel_width_mm": 500.0,
+    "panel_height_mm": 2100.0,
+    "geometry_node_count": 7,
+    "feature_node_count": 0,
+    "operation_node_count": 0,
+    "constraint_node_count": 1,
+    "edge_count": 10,
+    "creation_timestamp": "2026-01-01T00:00:00+00:00",
+    "parser_version": "omim-v0.1.0"
+  },
+  "nodes": [
+    {
+      "id": "geom-ent-33",
+      "data": {
+        "node_id": "geom-ent-33",
+        "node_type": "geometry",
+        "geometry_type": "lwpolyline",
+        "layer": "BORDER",
+        "inferred_layer_type": "border",
+        "coordinates": [
+          [
+            0.0,
+            0.0
+          ],
+          [
+            500.0,
+            0.0
+          ],
+          [
+            500.0,
+            2100.0
+          ],
+          [
+            0.0,
+            2100.0
+          ]
+        ],
+        "is_closed": true,
+        "bounding_box": [
+          0.0,
+          0.0,
+          500.0,
+          2100.0
+        ],
+        "area_mm2": 1050000.0,
+        "perimeter_mm": 5200.0,
+        "centroid": [
+          250.0,
+          1050.0
+        ],
+        "diameter_mm": null,
+        "radius_mm": null,
+        "is_outer_boundary": true,
+        "contains_node_ids": [],
+        "source_entity_id": "ent-33",
+        "source_file": "geometry.dxf",
+        "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+        "creation_method": "parsed",
+        "provenance": {
+          "record_id": "prov-geom-ent-33",
+          "timestamp": "2026-01-01T00:00:00+00:00",
+          "generator": "omim",
+          "generator_version": "v0.1.0",
+          "pipeline_stage": "graph_builder",
+          "module": "omim.graph.builder",
+          "ontology_version": "v0.1.0",
+          "ruleset_version": "v0.1.0",
+          "inference_method": "deterministic",
+          "confidence": 1.0,
+          "confidence_method": "geometric_computation",
+          "evidence": [],
+          "source_file": "geometry.dxf",
+          "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+          "source_entity_ids": [
+            "ent-33"
+          ],
+          "parent_record_ids": [],
+          "review_status": "unreviewed",
+          "reviewer": null,
+          "review_timestamp": null,
+          "review_notes": null
+        }
+      }
+    },
+    {
+      "id": "geom-ent-34",
+      "data": {
+        "node_id": "geom-ent-34",
+        "node_type": "geometry",
+        "geometry_type": "circle",
+        "layer": "DRILL",
+        "inferred_layer_type": "drill",
+        "coordinates": [
+          450.306095676886,
+          1347.7086171883727,
+          6.820374315023556
+        ],
+        "is_closed": true,
+        "bounding_box": [
+          443.48572136186243,
+          1340.888242873349,
+          457.1264699919096,
+          1354.5289915033964
+        ],
+        "area_mm2": 146.1244,
+        "perimeter_mm": 42.8526,
+        "centroid": [
+          450.306095676886,
+          1347.7086171883727
+        ],
+        "diameter_mm": 13.6407,
+        "radius_mm": 6.8204,
+        "is_outer_boundary": false,
+        "contains_node_ids": [],
+        "source_entity_id": "ent-34",
+        "source_file": "geometry.dxf",
+        "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+        "creation_method": "parsed",
+        "provenance": {
+          "record_id": "prov-geom-ent-34",
+          "timestamp": "2026-01-01T00:00:00+00:00",
+          "generator": "omim",
+          "generator_version": "v0.1.0",
+          "pipeline_stage": "graph_builder",
+          "module": "omim.graph.builder",
+          "ontology_version": "v0.1.0",
+          "ruleset_version": "v0.1.0",
+          "inference_method": "deterministic",
+          "confidence": 1.0,
+          "confidence_method": "geometric_computation",
+          "evidence": [],
+          "source_file": "geometry.dxf",
+          "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+          "source_entity_ids": [
+            "ent-34"
+          ],
+          "parent_record_ids": [],
+          "review_status": "unreviewed",
+          "reviewer": null,
+          "review_timestamp": null,
+          "review_notes": null
+        }
+      }
+    },
+    {
+      "id": "geom-ent-35",
+      "data": {
+        "node_id": "geom-ent-35",
+        "node_type": "geometry",
+        "geometry_type": "circle",
+        "layer": "DRILL",
+        "inferred_layer_type": "drill",
+        "coordinates": [
+          120.98391540419946,
+          1163.1542634838256,
+          5.0
+        ],
+        "is_closed": true,
+        "bounding_box": [
+          115.98391540419946,
+          1158.1542634838256,
+          125.98391540419946,
+          1168.1542634838256
+        ],
+        "area_mm2": 78.5319,
+        "perimeter_mm": 31.4151,
+        "centroid": [
+          120.98391540419946,
+          1163.1542634838256
+        ],
+        "diameter_mm": 10.0,
+        "radius_mm": 5.0,
+        "is_outer_boundary": false,
+        "contains_node_ids": [],
+        "source_entity_id": "ent-35",
+        "source_file": "geometry.dxf",
+        "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+        "creation_method": "parsed",
+        "provenance": {
+          "record_id": "prov-geom-ent-35",
+          "timestamp": "2026-01-01T00:00:00+00:00",
+          "generator": "omim",
+          "generator_version": "v0.1.0",
+          "pipeline_stage": "graph_builder",
+          "module": "omim.graph.builder",
+          "ontology_version": "v0.1.0",
+          "ruleset_version": "v0.1.0",
+          "inference_method": "deterministic",
+          "confidence": 1.0,
+          "confidence_method": "geometric_computation",
+          "evidence": [],
+          "source_file": "geometry.dxf",
+          "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+          "source_entity_ids": [
+            "ent-35"
+          ],
+          "parent_record_ids": [],
+          "review_status": "unreviewed",
+          "reviewer": null,
+          "review_timestamp": null,
+          "review_notes": null
+        }
+      }
+    },
+    {
+      "id": "geom-ent-36",
+      "data": {
+        "node_id": "geom-ent-36",
+        "node_type": "geometry",
+        "geometry_type": "circle",
+        "layer": "DRILL",
+        "inferred_layer_type": "drill",
+        "coordinates": [
+          133.51634931954476,
+          1178.2554945056588,
+          12.759205235903567
+        ],
+        "is_closed": true,
+        "bounding_box": [
+          120.7571440836412,
+          1165.4962892697552,
+          146.27555455544834,
+          1191.0146997415625
+        ],
+        "area_mm2": 511.3915,
+        "perimeter_mm": 80.1664,
+        "centroid": [
+          133.51634931954476,
+          1178.2554945056588
+        ],
+        "diameter_mm": 25.5184,
+        "radius_mm": 12.7592,
+        "is_outer_boundary": false,
+        "contains_node_ids": [],
+        "source_entity_id": "ent-36",
+        "source_file": "geometry.dxf",
+        "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+        "creation_method": "parsed",
+        "provenance": {
+          "record_id": "prov-geom-ent-36",
+          "timestamp": "2026-01-01T00:00:00+00:00",
+          "generator": "omim",
+          "generator_version": "v0.1.0",
+          "pipeline_stage": "graph_builder",
+          "module": "omim.graph.builder",
+          "ontology_version": "v0.1.0",
+          "ruleset_version": "v0.1.0",
+          "inference_method": "deterministic",
+          "confidence": 1.0,
+          "confidence_method": "geometric_computation",
+          "evidence": [],
+          "source_file": "geometry.dxf",
+          "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+          "source_entity_ids": [
+            "ent-36"
+          ],
+          "parent_record_ids": [],
+          "review_status": "unreviewed",
+          "reviewer": null,
+          "review_timestamp": null,
+          "review_notes": null
+        }
+      }
+    },
+    {
+      "id": "geom-ent-37",
+      "data": {
+        "node_id": "geom-ent-37",
+        "node_type": "geometry",
+        "geometry_type": "lwpolyline",
+        "layer": "POCKET",
+        "inferred_layer_type": "pocket",
+        "coordinates": [
+          [
+            91.36635216058414,
+            1445.9533730482187
+          ],
+          [
+            91.36635216058414,
+            1394.0057129150453
+          ],
+          [
+            90.99157745332317,
+            1392.1215932285822
+          ],
+          [
+            89.92430938337955,
+            1390.5243136847957
+          ],
+          [
+            88.32702983959307,
+            1389.4570456148522
+          ],
+          [
+            86.44291015313007,
+            1389.0822709075912
+          ],
+          [
+            86.42291015313009,
+            1389.0822709075912
+          ],
+          [
+            84.5387904666671,
+            1389.4570456148522
+          ],
+          [
+            82.94151092288061,
+            1390.5243136847957
+          ],
+          [
+            81.87424285293699,
+            1392.1215932285822
+          ],
+          [
+            81.49946814567602,
+            1394.0057129150453
+          ],
+          [
+            81.49946814567602,
+            1445.9533730482187
+          ],
+          [
+            81.87424285293699,
+            1447.8374927346817
+          ],
+          [
+            82.94151092288061,
+            1449.4347722784682
+          ],
+          [
+            84.5387904666671,
+            1450.5020403484118
+          ],
+          [
+            86.42291015313009,
+            1450.8768150556728
+          ],
+          [
+            86.44291015313007,
+            1450.8768150556728
+          ],
+          [
+            88.32702983959307,
+            1450.5020403484118
+          ],
+          [
+            89.92430938337955,
+            1449.4347722784682
+          ],
+          [
+            90.99157745332317,
+            1447.8374927346817
+          ]
+        ],
+        "is_closed": true,
+        "bounding_box": [
+          81.49946814567602,
+          1389.0822709075912,
+          91.36635216058414,
+          1450.8768150556728
+        ],
+        "area_mm2": 586.9693,
+        "perimeter_mm": 134.6718,
+        "centroid": [
+          86.4329,
+          1419.9795
+        ],
+        "diameter_mm": null,
+        "radius_mm": null,
+        "is_outer_boundary": false,
+        "contains_node_ids": [],
+        "source_entity_id": "ent-37",
+        "source_file": "geometry.dxf",
+        "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+        "creation_method": "parsed",
+        "provenance": {
+          "record_id": "prov-geom-ent-37",
+          "timestamp": "2026-01-01T00:00:00+00:00",
+          "generator": "omim",
+          "generator_version": "v0.1.0",
+          "pipeline_stage": "graph_builder",
+          "module": "omim.graph.builder",
+          "ontology_version": "v0.1.0",
+          "ruleset_version": "v0.1.0",
+          "inference_method": "deterministic",
+          "confidence": 1.0,
+          "confidence_method": "geometric_computation",
+          "evidence": [],
+          "source_file": "geometry.dxf",
+          "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+          "source_entity_ids": [
+            "ent-37"
+          ],
+          "parent_record_ids": [],
+          "review_status": "unreviewed",
+          "reviewer": null,
+          "review_timestamp": null,
+          "review_notes": null
+        }
+      }
+    },
+    {
+      "id": "geom-ent-38",
+      "data": {
+        "node_id": "geom-ent-38",
+        "node_type": "geometry",
+        "geometry_type": "lwpolyline",
+        "layer": "POCKET",
+        "inferred_layer_type": "pocket",
+        "coordinates": [
+          [
+            490.0225239255855,
+            953.4297389806367
+          ],
+          [
+            490.0225239255855,
+            1023.0665154634262
+          ],
+          [
+            500.0,
+            1023.0665154634262
+          ],
+          [
+            500.0,
+            953.4297389806367
+          ]
+        ],
+        "is_closed": true,
+        "bounding_box": [
+          490.0225239255855,
+          953.4297389806367,
+          500.0,
+          1023.0665154634262
+        ],
+        "area_mm2": 694.7993,
+        "perimeter_mm": 159.2285,
+        "centroid": [
+          495.0113,
+          988.2481
+        ],
+        "diameter_mm": null,
+        "radius_mm": null,
+        "is_outer_boundary": false,
+        "contains_node_ids": [],
+        "source_entity_id": "ent-38",
+        "source_file": "geometry.dxf",
+        "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+        "creation_method": "parsed",
+        "provenance": {
+          "record_id": "prov-geom-ent-38",
+          "timestamp": "2026-01-01T00:00:00+00:00",
+          "generator": "omim",
+          "generator_version": "v0.1.0",
+          "pipeline_stage": "graph_builder",
+          "module": "omim.graph.builder",
+          "ontology_version": "v0.1.0",
+          "ruleset_version": "v0.1.0",
+          "inference_method": "deterministic",
+          "confidence": 1.0,
+          "confidence_method": "geometric_computation",
+          "evidence": [],
+          "source_file": "geometry.dxf",
+          "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+          "source_entity_ids": [
+            "ent-38"
+          ],
+          "parent_record_ids": [],
+          "review_status": "unreviewed",
+          "reviewer": null,
+          "review_timestamp": null,
+          "review_notes": null
+        }
+      }
+    },
+    {
+      "id": "geom-ent-39",
+      "data": {
+        "node_id": "geom-ent-39",
+        "node_type": "geometry",
+        "geometry_type": "lwpolyline",
+        "layer": "POCKET",
+        "inferred_layer_type": "pocket",
+        "coordinates": [
+          [
+            124.68370520369832,
+            1424.3803736822542
+          ],
+          [
+            124.68370520369832,
+            1357.4448039140416
+          ],
+          [
+            124.3602051669724,
+            1355.8184594037052
+          ],
+          [
+            123.43895500485105,
+            1354.4397111022179
+          ],
+          [
+            122.06020670336372,
+            1353.5184609400965
+          ],
+          [
+            120.43386219302738,
+            1353.1949609033707
+          ],
+          [
+            120.41386219302737,
+            1353.1949609033707
+          ],
+          [
+            118.78751768269103,
+            1353.5184609400965
+          ],
+          [
+            117.4087693812037,
+            1354.4397111022179
+          ],
+          [
+            116.48751921908234,
+            1355.8184594037052
+          ],
+          [
+            116.16401918235643,
+            1357.4448039140416
+          ],
+          [
+            116.16401918235643,
+            1424.3803736822542
+          ],
+          [
+            116.48751921908234,
+            1426.0067181925906
+          ],
+          [
+            117.4087693812037,
+            1427.385466494078
+          ],
+          [
+            118.78751768269103,
+            1428.3067166561993
+          ],
+          [
+            120.41386219302737,
+            1428.6302166929252
+          ],
+          [
+            120.43386219302738,
+            1428.6302166929252
+          ],
+          [
+            122.06020670336372,
+            1428.3067166561993
+          ],
+          [
+            123.43895500485105,
+            1427.385466494078
+          ],
+          [
+            124.3602051669724,
+            1426.0067181925906
+          ]
+        ],
+        "is_closed": true,
+        "bounding_box": [
+          116.16401918235643,
+          1353.1949609033707,
+          124.68370520369832,
+          1428.6302166929252
+        ],
+        "area_mm2": 625.7337,
+        "perimeter_mm": 160.4424,
+        "centroid": [
+          120.4239,
+          1390.9126
+        ],
+        "diameter_mm": null,
+        "radius_mm": null,
+        "is_outer_boundary": false,
+        "contains_node_ids": [],
+        "source_entity_id": "ent-39",
+        "source_file": "geometry.dxf",
+        "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+        "creation_method": "parsed",
+        "provenance": {
+          "record_id": "prov-geom-ent-39",
+          "timestamp": "2026-01-01T00:00:00+00:00",
+          "generator": "omim",
+          "generator_version": "v0.1.0",
+          "pipeline_stage": "graph_builder",
+          "module": "omim.graph.builder",
+          "ontology_version": "v0.1.0",
+          "ruleset_version": "v0.1.0",
+          "inference_method": "deterministic",
+          "confidence": 1.0,
+          "confidence_method": "geometric_computation",
+          "evidence": [],
+          "source_file": "geometry.dxf",
+          "source_file_hash": "sha256:f4941f2abb1f449647bb2cb20113b3ac14850864ac8bf9a817eb8728a901810f",
+          "source_entity_ids": [
+            "ent-39"
+          ],
+          "parent_record_ids": [],
+          "review_status": "unreviewed",
+          "reviewer": null,
+          "review_timestamp": null,
+          "review_notes": null
+        }
+      }
+    },
+    {
+      "id": "constraint-MFG-002-0",
+      "data": {
+        "node_id": "constraint-MFG-002-0",
+        "node_type": "constraint",
+        "constraint_type": "MFG-002",
+        "constraint_value": 0.0,
+        "constraint_unit": "mm",
+        "is_violated": true,
+        "violation_severity": "ERROR",
+        "applies_to_node_ids": [
+          "geom-ent-35",
+          "geom-ent-36"
+        ],
+        "rule_id": "MFG-002",
+        "message": "Wall thickness between geom-ent-35 and geom-ent-36 is 1.9 mm (minimum: 3.0 mm)",
+        "provenance": null
+      }
+    }
+  ],
+  "links": [
+    {
+      "source": "geom-ent-33",
+      "target": "geom-ent-34",
+      "key": 0,
+      "data": {
+        "edge_type": "CONTAINS"
+      }
+    },
+    {
+      "source": "geom-ent-33",
+      "target": "geom-ent-35",
+      "key": 0,
+      "data": {
+        "edge_type": "CONTAINS"
+      }
+    },
+    {
+      "source": "geom-ent-33",
+      "target": "geom-ent-36",
+      "key": 0,
+      "data": {
+        "edge_type": "CONTAINS"
+      }
+    },
+    {
+      "source": "geom-ent-33",
+      "target": "geom-ent-37",
+      "key": 0,
+      "data": {
+        "edge_type": "CONTAINS"
+      }
+    },
+    {
+      "source": "geom-ent-33",
+      "target": "geom-ent-38",
+      "key": 0,
+      "data": {
+        "edge_type": "CONTAINS"
+      }
+    },
+    {
+      "source": "geom-ent-33",
+      "target": "geom-ent-39",
+      "key": 0,
+      "data": {
+        "edge_type": "CONTAINS"
+      }
+    },
+    {
+      "source": "geom-ent-35",
+      "target": "geom-ent-36",
+      "key": 0,
+      "data": {
+        "edge_type": "ADJACENT_TO",
+        "distance_mm": 19.6242
+      }
+    },
+    {
+      "source": "geom-ent-35",
+      "target": "geom-ent-39",
+      "key": 0,
+      "data": {
+        "edge_type": "SAME_COLUMN"
+      }
+    },
+    {
+      "source": "constraint-MFG-002-0",
+      "target": "geom-ent-35",
+      "key": 0,
+      "data": {
+        "edge_type": "APPLIES_TO"
+      }
+    },
+    {
+      "source": "constraint-MFG-002-0",
+      "target": "geom-ent-36",
+      "key": 0,
+      "data": {
+        "edge_type": "APPLIES_TO"
+      }
+    }
+  ]
+}

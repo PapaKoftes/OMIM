@@ -31,15 +31,19 @@ vendor ground truth*. Literal third-party-file acquisition remains the user's st
 `experiments/phase4_model_vs_rules.py` — both models evaluated on the SAME held-out
 test sets, ground truth from the generation spec, trivial floor included:
 
+Multi-seed (3 independent trials, seed_bases 100/200/300), macro-F1 mean ± std:
+
 | Test data | Deterministic rules (skyline) | GNN | Floor |
 |---|---|---|---|
-| Clean | 0.671 | 0.764 | — |
-| **Noisy (real-world-like)** | **0.479** | **0.864** | 0.055 |
+| Clean | 0.700 ± 0.040 | 0.842 ± 0.041 | — |
+| **Noisy (real-world-like)** | **0.499 ± 0.053** | **0.890 ± 0.048** | ~0.06 |
 
-On clean geometry the rules are already decent; the GNN only edges them (so on
-clean data, *ship the rules*). On **messy** input — renamed/dropped layers, jittered
-diameters, duplicate entities, i.e. what real DXFs look like — the brittle exact-match
-rules collapse to 0.48 while a GNN trained on messy data holds at **0.86 (+0.385)**.
+GNN lift on noisy data: **+0.390 ± 0.056, winning in 3/3 trials** — robust, not a
+lucky seed. On clean geometry the rules are already decent; the GNN only edges them
+(so on clean data, *ship the rules*). On **messy** input — renamed/dropped layers,
+jittered diameters, duplicate entities, i.e. what real DXFs look like — the brittle
+exact-match / layer-keyword rules collapse to ~0.50 while a GNN trained on messy data
+holds at ~0.89.
 
 **This is the first real evidence in the project that a learned model earns its place.**
 It directly revises the earlier "circular / pointless" conclusion: that conclusion was
@@ -53,9 +57,12 @@ exports + vendor templates). If the GNN still wins on real mess → HPC scale-up
 If it doesn't → the rules are the product. Either way you now have an executable,
 evidence-based gate instead of a guess.
 
-> Caveats kept honest: single-seed run; the "noise" is a synthetic *approximation* of
-> real mess; the GNN scoring higher on noisy-than-clean reflects train/test distribution
-> match (it was trained on noisy). None of this substitutes for real data — it de-risks it.
+> Caveats kept honest: the "noise" is a synthetic *approximation* of real mess; the GNN
+> scoring higher on noisy-than-clean reflects train/test distribution match (it was trained
+> on noisy); and the noise is aggressive enough that some perturbed panels trip MFG-002 and
+> are skipped by the gatekeeper (E-005) — both models are scored on the same survivors, so
+> the comparison is fair, but the noisy sets are smaller than requested. None of this
+> substitutes for real data — it de-risks it.
 
 ---
 

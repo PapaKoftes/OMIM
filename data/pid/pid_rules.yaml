@@ -1,0 +1,41 @@
+# P&ID validation rules — ISA-5.1 (v0 stub)
+# Mirrors the panel ruleset structure (05_VALIDATION/Rule_Engine). Handlers live
+# in omim.domains.pid.rules; this file is the externalized, citable rule metadata.
+version: "v0.1.0"
+standard: "ANSI/ISA-5.1-2024"
+
+rules:
+  - rule_id: "PID-TAG-001"
+    name: "Valid ISA-5.1 tag grammar"
+    family: "tag"
+    rule_type: "standards_derived"
+    severity: "ERROR"
+    confidence_ceiling: 0.95
+    source: "ANSI/ISA-5.1-2024 §Instrument identification"
+    description: >
+      Every tagged component must have a valid ISA-5.1 tag: a measured-variable
+      first letter, valid function/modifier succeeding letters, and a loop number.
+
+  - rule_id: "PID-CONN-001"
+    name: "No isolated component"
+    family: "connectivity"
+    rule_type: "geometric"          # topological fact about the graph
+    severity: "ERROR"
+    confidence_ceiling: 1.0
+    source: "P&ID connectivity requirement; ISO 10628 process-diagram conventions"
+    description: >
+      Every component must connect to at least one other element. Isolated nodes
+      indicate a dangling/floating symbol or a broken connection.
+
+  - rule_id: "PID-LOOP-001"
+    name: "Control loop completeness"
+    family: "loop"
+    rule_type: "standards_derived"
+    severity: "WARNING"
+    confidence_ceiling: 0.90
+    source: "ISA-5.1 control-loop tagging; instrumentation loop conventions"
+    description: >
+      A loop that contains a controller (function letter C) should also contain a
+      measurement (transmitter T) and a final control element (valve V / actuator Z)
+      sharing the loop number. Single-panel/partial diagrams may legitimately omit
+      members, hence WARNING not ERROR.

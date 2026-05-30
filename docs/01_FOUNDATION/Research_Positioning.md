@@ -3,7 +3,7 @@
 Version: v0.1.0  
 Section: 01_FOUNDATION  
 
-See also: [[01_FOUNDATION/Vision_and_Scope]], [[01_FOUNDATION/Non_Goals]], [[08_PROVENANCE_AND_CONFIDENCE/Provenance_System]]
+See also: [[01_FOUNDATION/Vision_and_Scope]], [[01_FOUNDATION/Non_Goals]], [[01_FOUNDATION/External_Baselines]], [[08_PROVENANCE_AND_CONFIDENCE/Provenance_System]]
 
 ---
 

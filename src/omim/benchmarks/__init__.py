@@ -7,6 +7,10 @@ Four tasks (BENCH-001..004) evaluate the deterministic OMIM baseline
 
 See docs/09_BENCHMARKS/ for task definitions, metrics, and the train/test
 policy.
+
+Note: the closest external feature-recognition baseline is Analysis Situs
+(B-Rep / 3D CAD on OpenCASCADE), whereas these benchmarks target 2.5D DXF
+panels. See docs/01_FOUNDATION/External_Baselines.md for the full positioning.
 """
 
 from __future__ import annotations

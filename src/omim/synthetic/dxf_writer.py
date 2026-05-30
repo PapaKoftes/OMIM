@@ -13,6 +13,7 @@ layer so the parser detects it as the panel boundary (largest closed contour).
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from pathlib import Path
 
 import ezdxf
@@ -74,13 +75,41 @@ class DXFWriter:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        doc = ezdxf.new(self.dxf_version)
+        # --- DXF byte-reproducibility --------------------------------------
+        # ezdxf otherwise stamps each saved file at save time with random
+        # header GUIDs ($FINGERPRINTGUID/$VERSIONGUID), wall-clock create/
+        # update timestamps ($TDCREATE/$TDUPDATE/...), and an "ezdxf <version>
+        # @ <now>" marker string in the AppData dictionary. That makes
+        # identical geometry produce different bytes -> a different
+        # source_file_hash on every run. ezdxf exposes a single switch that
+        # pins ALL of these to fixed constants (CONST_GUID, the year-2000
+        # julian date, and a constant marker string); see
+        # ezdxf.document._update_metadata / ezdxf_marker_string. We set it for
+        # the duration of the save so identical (panel, features) input ->
+        # byte-identical .dxf output. The entity-add order below is already
+        # deterministic, so handles are stable too.
+        prev_fixed_meta = ezdxf.options.write_fixed_meta_data_for_testing
+        ezdxf.options.write_fixed_meta_data_for_testing = True
+        try:
+            return self._write_panel(doc_version=self.dxf_version, panel=panel,
+                                     features=features, output_path=output_path)
+        finally:
+            ezdxf.options.write_fixed_meta_data_for_testing = prev_fixed_meta
+
+    def _write_panel(
+        self,
+        doc_version: str,
+        panel: PanelSpec,
+        features: list[FeatureSpec],
+        output_path: Path,
+    ) -> str:
+        doc = ezdxf.new(doc_version)
         doc.header["$INSUNITS"] = 4  # 4 == millimeters
         msp = doc.modelspace()
 
         # Ensure the layers we use exist (ezdxf auto-creates on use, but make
         # them explicit for cleanliness).
-        for layer_name in {BORDER_LAYER, "CUT", "DRILL", "POCKET"}:
+        for layer_name in [BORDER_LAYER, "CUT", "DRILL", "POCKET"]:
             if layer_name not in doc.layers:
                 doc.layers.add(layer_name)
 
@@ -126,6 +155,26 @@ class DXFWriter:
                     close=bool(feature.is_closed),
                     dxfattribs={"layer": layer},
                 )
+
+        # ezdxf decides which extra CLASS definitions to emit by iterating
+        # ``entitydb.dxf_types_in_use()`` (a *set* of strings) at save time and
+        # appending them in set-iteration order. That order is
+        # PYTHONHASHSEED-dependent, so two separate `omim generate` processes
+        # emit the CLASSES section in different orders -> different bytes.
+        #
+        # ``add_class`` keeps already-registered classes in their existing
+        # position, so we pre-register every required class HERE in a canonical
+        # (sorted) order. When ezdxf re-runs ``add_required_classes`` during
+        # ``saveas`` the set-order appends all hit existing keys and become
+        # no-ops, leaving the CLASSES section deterministic. We then sort the
+        # backing OrderedDict for good measure.
+        classes_section = doc.classes
+        classes_section.add_required_classes(self.dxf_version)
+        for dxftype in sorted(doc.entitydb.dxf_types_in_use()):
+            classes_section.add_class(dxftype)
+        classes_section.classes = OrderedDict(
+            sorted(classes_section.classes.items(), key=lambda kv: kv[0])
+        )
 
         doc.saveas(str(output_path))
         return str(output_path)

@@ -171,6 +171,40 @@ def _model_dump(obj: Any) -> dict:
     raise ExportIOError(f"Cannot serialize object of type {type(obj)!r}")
 
 
+def _stabilize_validation(data: dict) -> dict:
+    """Make a serialized ValidationReport dict byte-reproducible.
+
+    The rule engine stamps inherently non-reproducible OBSERVABILITY data into
+    every report: a random ``report_id``/provenance ``record_id``, a wall-clock
+    ``timestamp``, and per-rule/overall timing (``validation_time_ms`` /
+    ``execution_time_ms``). None of these are part of the validation *outcome*.
+    We zero the timing fields and DERIVE the ids/timestamp from the (now
+    deterministic) ``graph_id`` so the exported validation.json is stable
+    across identical seeds. The live rule engine is left untouched.
+    """
+    graph_id = data.get("graph_id") or "unknown"
+    derived_ts = "1970-01-01T00:00:00+00:00"
+
+    data["report_id"] = f"report-{graph_id}"
+    data["timestamp"] = derived_ts
+    data["validation_time_ms"] = 0.0
+
+    prov = data.get("provenance")
+    if isinstance(prov, dict):
+        prov["record_id"] = f"prov-report-{graph_id}"
+        prov["timestamp"] = derived_ts
+
+    for key in ("layer1_results", "layer2_results"):
+        for result in data.get(key, []) or []:
+            if isinstance(result, dict):
+                result["execution_time_ms"] = 0.0
+                rprov = result.get("provenance")
+                if isinstance(rprov, dict):
+                    rprov["timestamp"] = derived_ts
+
+    return data
+
+
 def _mgg_dict(mgg: Any) -> dict:
     if hasattr(mgg, "to_dict"):
         return mgg.to_dict()
@@ -562,7 +596,7 @@ class DatasetExporter:
         # Build all file contents up front (cheap, no I/O).
         try:
             mgg_data = _mgg_dict(request.mgg)
-            validation_data = _model_dump(request.validation_report)
+            validation_data = _stabilize_validation(_model_dump(request.validation_report))
             labels_data = build_labels(
                 request.mgg,
                 request.semantic_annotations,

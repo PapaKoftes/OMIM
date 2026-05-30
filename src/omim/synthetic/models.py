@@ -35,6 +35,10 @@ class PanelGeneratorConfig(BaseModel):
     format: Literal["flat", "split"] = "split"
     ruleset_version: str = "v0.1.0"
     schema_version: str = "v0.1.0"
+    # Fixed timestamp stamped into every generated artifact (MGG creation
+    # timestamp, dataset generated_at, dataset_metadata creation_timestamp) so
+    # the generation pipeline is byte-reproducible. A constant, NOT now().
+    generation_timestamp: str = "2026-01-01T00:00:00+00:00"
 
 
 class PanelSpec(BaseModel):

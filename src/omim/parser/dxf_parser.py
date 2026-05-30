@@ -3,7 +3,6 @@
 import hashlib
 import logging
 import math
-import uuid
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -256,7 +255,7 @@ class DXFParser:
 
                 coords = [cx, cy, r]
                 shapely_props = _compute_shapely_circle(cx, cy, r)
-                eid = str(uuid.uuid4())
+                eid = f"ent-{handle}"
                 raw_ent = RawEntity(
                     entity_id=eid,
                     ezdxf_handle=handle,
@@ -286,7 +285,7 @@ class DXFParser:
                     continue
 
                 shapely_props = _compute_shapely_polyline(pts, is_closed)
-                eid = str(uuid.uuid4())
+                eid = f"ent-{handle}"
                 raw_ent = RawEntity(
                     entity_id=eid,
                     ezdxf_handle=handle,
@@ -325,7 +324,7 @@ class DXFParser:
                         continue
 
                     shapely_props = _compute_shapely_polyline(pts, is_closed)
-                    eid = str(uuid.uuid4())
+                    eid = f"ent-{handle}"
                     raw_ent = RawEntity(
                         entity_id=eid,
                         ezdxf_handle=handle,
@@ -361,7 +360,7 @@ class DXFParser:
                 ex, ey = _scale_pt(ex, ey, units_normalized_from)
                 pts = [[sx, sy], [ex, ey]]
                 shapely_props = _compute_shapely_line(pts)
-                eid = str(uuid.uuid4())
+                eid = f"ent-{handle}"
                 raw_ent = RawEntity(
                     entity_id=eid,
                     ezdxf_handle=handle,
@@ -384,7 +383,7 @@ class DXFParser:
                 end_angle = entity.dxf.end_angle
                 coords = [cx, cy, r, start_angle, end_angle]
                 shapely_props = _compute_shapely_arc(cx, cy, r, start_angle, end_angle)
-                eid = str(uuid.uuid4())
+                eid = f"ent-{handle}"
                 raw_ent = RawEntity(
                     entity_id=eid,
                     ezdxf_handle=handle,
@@ -426,7 +425,7 @@ class DXFParser:
 
                     is_closed = entity.closed
                     shapely_props = _compute_shapely_polyline(pts, is_closed)
-                    eid = str(uuid.uuid4())
+                    eid = f"ent-{handle}"
                     raw_ent = RawEntity(
                         entity_id=eid,
                         ezdxf_handle=handle,
@@ -497,7 +496,7 @@ class DXFParser:
                 ]
                 inferred_area = (xmax - xmin) * (ymax - ymin)
                 panel_boundary = PanelBoundary(
-                    entity_id=f"inferred-{uuid.uuid4().hex[:8]}",
+                    entity_id="ent-inferred-boundary",
                     coordinates=inferred_coords,
                     bounding_box=[xmin, ymin, xmax, ymax],
                     area_mm2=round(inferred_area, 4),

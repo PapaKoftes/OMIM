@@ -7,7 +7,6 @@ Pipeline: RawGeometry -> GeometryNodes -> Shapely enrichment -> panel detection
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import UTC, datetime
 
 from shapely.geometry import Point, Polygon
@@ -32,14 +31,30 @@ class MGGBuilder:
         self.ontology = ontology
         self.provenance_tracker = provenance_tracker
 
-    def build(self, raw: RawGeometry) -> ManufacturingGeometryGraph:
-        graph_id = f"mgg-{uuid.uuid4().hex[:12]}"
+    def build(
+        self,
+        raw: RawGeometry,
+        *,
+        creation_timestamp: str | None = None,
+    ) -> ManufacturingGeometryGraph:
+        # Derive graph_id deterministically from the source file hash. This is
+        # both reproducible (same bytes -> same id) and sensible for the live
+        # one-off path (the same file always maps to the same graph id). The
+        # hash already has a "sha256:" prefix; take the last 12 hex chars.
+        digest = raw.source_file_hash.split(":")[-1]
+        graph_id = f"mgg-{digest[:12]}" if digest else "mgg-unknown"
+
+        # creation_timestamp is INJECTABLE so the synthetic generator can pin a
+        # fixed constant for byte-reproducible artifacts. The live path leaves
+        # it None and gets a real wall-clock timestamp.
+        if creation_timestamp is None:
+            creation_timestamp = datetime.now(UTC).isoformat()
 
         metadata = GraphMetadata(
             graph_id=graph_id,
             source_file=raw.source_file,
             source_file_hash=raw.source_file_hash,
-            creation_timestamp=datetime.now(UTC).isoformat(),
+            creation_timestamp=creation_timestamp,
         )
 
         mgg = ManufacturingGeometryGraph(metadata)
@@ -54,7 +69,9 @@ class MGGBuilder:
 
         # Phase 1: Create geometry nodes with Shapely enrichment
         for entity in raw.entities:
-            geom_node = self._entity_to_geometry_node(entity, raw, tracker)
+            geom_node = self._entity_to_geometry_node(
+                entity, raw, tracker, creation_timestamp
+            )
             mgg.add_geometry_node(geom_node)
 
         # Phase 2: Detect panel boundary
@@ -86,7 +103,11 @@ class MGGBuilder:
     # ------------------------------------------------------------------
 
     def _entity_to_geometry_node(
-        self, entity: RawEntity, raw: RawGeometry, tracker: ProvenanceTracker
+        self,
+        entity: RawEntity,
+        raw: RawGeometry,
+        tracker: ProvenanceTracker,
+        creation_timestamp: str,
     ) -> GeometryNode:
         node_id = f"geom-{entity.entity_id}"
         geom_type = entity.entity_type.lower()
@@ -106,6 +127,13 @@ class MGGBuilder:
             source_entity_ids=[entity.entity_id],
             confidence_method="geometric_computation",
         )
+        # The tracker stamps a random record_id and a wall-clock timestamp,
+        # which would make mgg.json non-reproducible. Overwrite them with
+        # values DERIVED from the (deterministic) entity id and the injected
+        # creation_timestamp. The tracker itself is left untouched so the live
+        # one-off pipeline keeps its real uuid/now provenance.
+        provenance.record_id = f"prov-{node_id}"
+        provenance.timestamp = creation_timestamp
 
         return GeometryNode(
             node_id=node_id,

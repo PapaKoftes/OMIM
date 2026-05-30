@@ -1,0 +1,96 @@
+{
+  "$schema": "omim-labels-v0.1.0",
+  "sample_id": "sample_000000",
+  "schema_version": "v0.1.0",
+  "is_valid": false,
+  "injected_violations": [
+    "GEO-007"
+  ],
+  "panel": {
+    "width_mm": 500.0,
+    "height_mm": 2100.0,
+    "thickness_mm": 18.0,
+    "area_mm2": 1050000.0,
+    "material": "MDF",
+    "panel_type": "shelf"
+  },
+  "features": [
+    {
+      "feature_id": "sample_000000_feat_000",
+      "feature_class": "PROFILE_CUT",
+      "diameter_mm": null,
+      "depth_mm": null,
+      "position_mm": [
+        200.0,
+        840.0
+      ],
+      "group_id": null,
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000000_feat_001",
+      "feature_class": "DOWEL_HOLE",
+      "diameter_mm": 8.0,
+      "depth_mm": null,
+      "position_mm": [
+        188.62906151047608,
+        1935.5373518608487
+      ],
+      "group_id": null,
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000000_feat_002",
+      "feature_class": "DOWEL_HOLE",
+      "diameter_mm": 10.0,
+      "depth_mm": null,
+      "position_mm": [
+        402.6662430771026,
+        932.6976341690574
+      ],
+      "group_id": null,
+      "is_valid": true,
+      "violations": [],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    },
+    {
+      "feature_id": "sample_000000_feat_003",
+      "feature_class": "THROUGH_HOLE",
+      "diameter_mm": 18.419204462411706,
+      "depth_mm": null,
+      "position_mm": [
+        538.4770528410784,
+        1726.4210257153577
+      ],
+      "group_id": null,
+      "is_valid": false,
+      "violations": [
+        "GEO-007"
+      ],
+      "ground_truth_source": "synthetic_generator",
+      "confidence": 1.0,
+      "ontology_version": "v0.1.0"
+    }
+  ],
+  "feature_counts": {
+    "PROFILE_CUT": 1,
+    "DOWEL_HOLE": 2,
+    "THROUGH_HOLE": 1
+  },
+  "operations": [
+    "DRILLING",
+    "PROFILE_CUTTING"
+  ],
+  "complexity": "simple",
+  "split": "train"
+}

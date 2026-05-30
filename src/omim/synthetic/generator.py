@@ -22,8 +22,6 @@ Provenance for the generation stage uses InferenceMethod.SYNTHETIC, confidence
 from __future__ import annotations
 
 import logging
-import uuid
-from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -269,9 +267,14 @@ class PanelGenerator:
 
         exporter = DatasetExporter(output_root=samples_dir)
 
+        # Deterministic dataset_id derived from (schema, seed, num_samples) and
+        # a fixed generated_at, so the manifest/metadata are reproducible too.
         manifest = DatasetManifest(
-            dataset_id=f"omim-synthetic-{self.config.schema_version}-{uuid.uuid4().hex[:8]}",
-            generated_at=datetime.now(UTC).isoformat(),
+            dataset_id=(
+                f"omim-synthetic-{self.config.schema_version}"
+                f"-seed{self.config.random_seed}-n{self.config.num_samples}"
+            ),
+            generated_at=self.config.generation_timestamp,
             generator_version=GENERATOR_VERSION,
             schema_version=self.config.schema_version,
         )
@@ -295,7 +298,18 @@ class PanelGenerator:
                 )
                 continue
 
-            mgg = self.builder.build(parse_result.geometry)
+            # Normalize the recorded source path to the CANONICAL exported
+            # filename ("geometry.dxf") instead of the volatile temp _work path
+            # (e.g. "_r1\\_work\\sample_000000.dxf"), which would otherwise leak
+            # an absolute/relative working path into the MGG metadata and every
+            # node, breaking byte-reproducibility. The hash already reflects the
+            # (now byte-stable) DXF content, so it stays correct.
+            parse_result.geometry.source_file = "geometry.dxf"
+
+            mgg = self.builder.build(
+                parse_result.geometry,
+                creation_timestamp=self.config.generation_timestamp,
+            )
             report = self.rule_engine.validate(mgg)
 
             # --- THE VALIDATOR IS THE GATEKEEPER ---
@@ -401,6 +415,8 @@ class PanelGenerator:
                 ],
                 "panel_thickness_options_mm": self.config.panel_thickness_options_mm,
                 "dataset_id": manifest.dataset_id,
+                # Fixed timestamp -> reproducible dataset_metadata.json.
+                "creation_timestamp": self.config.generation_timestamp,
             },
             statistics={
                 "total_samples": manifest.total_samples,

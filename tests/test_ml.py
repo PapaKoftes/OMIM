@@ -231,3 +231,39 @@ def test_overfit_tiny_batch_sanity(sample_mgg):
     assert result.epochs_run >= 1
     assert np.isfinite(result.final_train_loss)
     assert 0.0 <= result.best_val_macro_f1 <= 1.0
+
+
+@pytest.mark.skipif(not ML_AVAILABLE, reason=_SKIP_REASON)
+def test_train_survives_single_node_graphs():
+    """Regression: training must not crash on single-node graphs.
+
+    BatchNorm in train mode raises on a size-1 input; the trainer now mini-batches
+    via torch_geometric DataLoader and skips any lone single-node training batch.
+    A dataset containing 1-node panels previously crashed the whole run.
+    """
+    import torch
+    from torch_geometric.data import Data
+
+    from omim.ml.trainer import GNNTrainer
+
+    def one_node():
+        return Data(
+            x=torch.zeros(1, 16),
+            edge_index=torch.empty(2, 0, dtype=torch.long),
+            y=torch.zeros(1, dtype=torch.long),
+        )
+
+    def multi_node(n=4):
+        return Data(
+            x=torch.zeros(n, 16),
+            edge_index=torch.empty(2, 0, dtype=torch.long),
+            y=torch.zeros(n, dtype=torch.long),
+        )
+
+    # Mixed dataset incl. single-node graphs, and a lone single-node dataset.
+    trainer = GNNTrainer(max_epochs=2)
+    res = trainer.train([one_node(), multi_node(), one_node()], val_loader=[multi_node()])
+    assert res.epochs_run >= 1
+
+    res2 = GNNTrainer(max_epochs=2).train([one_node()], val_loader=[one_node()])
+    assert res2.epochs_run >= 1

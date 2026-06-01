@@ -32,15 +32,31 @@ class RuleEngine:
     # Layer execution
     # ------------------------------------------------------------------
 
-    def execute_layer1(self, mgg: ManufacturingGeometryGraph) -> list[RuleResult]:
-        """Run GEO-001 to GEO-008 sorted by rule_id."""
+    def _run_handlers(
+        self,
+        mgg: ManufacturingGeometryGraph,
+        handlers: dict[str, object],
+    ) -> list[RuleResult]:
+        """Run each handler sorted by rule_id, timing the whole rule once.
+
+        The per-rule ``execution_time_ms`` is measured here, at the engine level,
+        and stamped onto every RuleResult the handler returns. This fixes a
+        long-standing bug where each rule recomputed ``elapsed`` inside individual
+        violation branches, so a multi-violation rule reported a different,
+        cumulative time per finding instead of the rule's true wall-clock cost.
+        """
         results: list[RuleResult] = []
-        for rule_id in sorted(GEOMETRIC_HANDLERS.keys()):
-            handler = GEOMETRIC_HANDLERS[rule_id]
+        for rule_id in sorted(handlers.keys()):
+            handler = handlers[rule_id]
+            t0 = time.perf_counter()
             try:
                 rule_results = handler(mgg)
+                elapsed = (time.perf_counter() - t0) * 1000
+                for r in rule_results:
+                    r.execution_time_ms = elapsed
                 results.extend(rule_results)
             except Exception as exc:
+                elapsed = (time.perf_counter() - t0) * 1000
                 logger.exception("Rule %s raised an exception", rule_id)
                 results.append(RuleResult(
                     rule_id=rule_id,
@@ -48,27 +64,17 @@ class RuleEngine:
                     passed=False,
                     severity="SYSTEM_ERROR",
                     message=f"Rule {rule_id} raised an exception: {exc}",
+                    execution_time_ms=elapsed,
                 ))
         return results
 
+    def execute_layer1(self, mgg: ManufacturingGeometryGraph) -> list[RuleResult]:
+        """Run GEO-001 to GEO-008 sorted by rule_id."""
+        return self._run_handlers(mgg, GEOMETRIC_HANDLERS)
+
     def execute_layer2(self, mgg: ManufacturingGeometryGraph) -> list[RuleResult]:
         """Run MFG-001 to MFG-012 sorted by rule_id. NO access to semantic layer."""
-        results: list[RuleResult] = []
-        for rule_id in sorted(MANUFACTURING_HANDLERS.keys()):
-            handler = MANUFACTURING_HANDLERS[rule_id]
-            try:
-                rule_results = handler(mgg)
-                results.extend(rule_results)
-            except Exception as exc:
-                logger.exception("Rule %s raised an exception", rule_id)
-                results.append(RuleResult(
-                    rule_id=rule_id,
-                    rule_name=rule_id,
-                    passed=False,
-                    severity="SYSTEM_ERROR",
-                    message=f"Rule {rule_id} raised an exception: {exc}",
-                ))
-        return results
+        return self._run_handlers(mgg, MANUFACTURING_HANDLERS)
 
     # ------------------------------------------------------------------
     # Main entry point

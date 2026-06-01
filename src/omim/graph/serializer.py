@@ -18,10 +18,30 @@ def save_mgg(mgg: ManufacturingGeometryGraph, path: str | Path) -> Path:
 
 
 def load_mgg(path: str | Path) -> ManufacturingGeometryGraph:
-    """Read an MGG from a JSON file."""
+    """Read an MGG from a JSON file.
+
+    Raises a clear :class:`ValueError` (chaining the underlying cause) when the
+    file is missing, is not valid JSON, or lacks the expected MGG structure —
+    rather than leaking a raw ``JSONDecodeError``/``KeyError`` with no context.
+    """
     path = Path(path)
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return ManufacturingGeometryGraph.from_dict(data)
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(f"Cannot read MGG file {path}: {exc}") from exc
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Malformed MGG JSON at {path}: {exc}") from exc
+    if not isinstance(data, dict) or "metadata" not in data:
+        raise ValueError(
+            f"Invalid MGG document at {path}: expected a JSON object with a "
+            f"'metadata' key (got {type(data).__name__})"
+        )
+    try:
+        return ManufacturingGeometryGraph.from_dict(data)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"Could not reconstruct MGG from {path}: {exc}") from exc
 
 
 def mgg_to_cytoscape(mgg: ManufacturingGeometryGraph) -> dict[str, Any]:

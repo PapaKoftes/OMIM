@@ -100,6 +100,10 @@ class Ontology:
     relationships: dict[str, RelationshipDefinition] = field(default_factory=dict)
     constraints: dict[str, ConstraintDefinition] = field(default_factory=dict)
     materials: dict[str, MaterialDefinition] = field(default_factory=dict)
+    #: Raw rule definitions keyed by rule_id, populated from data/rules/*.yaml
+    #: when the ontology is loaded with a ``rules_dir``. Each value is the rule's
+    #: parsed YAML dict (rule_id, applies_to, parameters, severity, ...).
+    rules: dict[str, dict] = field(default_factory=dict)
 
     # -- Feature queries ---------------------------------------------------
 
@@ -143,15 +147,37 @@ class Ontology:
 
     # -- Rule cross-reference ----------------------------------------------
 
+    #: DXF entity-type tokens that may appear in a rule's ``applies_to`` but are
+    #: NOT feature classes (so they are excluded from feature references).
+    _DXF_ENTITY_TYPES = frozenset({
+        "CIRCLE", "LWPOLYLINE", "POLYLINE", "LINE", "ARC", "SPLINE",
+        "ELLIPSE", "ALL", "ALL_GEOMETRY",
+    })
+
     def get_rule_feature_references(self) -> dict[str, list[str]]:
         """Return mapping of ``rule_id -> [feature_class, ...]`` for rules
         with feature-specific applicability.
 
-        Scans loaded features for operations and infers which rules reference
-        which features. Rules with ``applies_to: ["all"]`` are excluded.
+        Reads the rule definitions loaded into :attr:`rules` (populated when the
+        ontology is loaded with a ``rules_dir``). For each rule, an ``applies_to``
+        token counts as a feature reference only when it is not a plain DXF entity
+        type and either is a known ontology feature id or is UPPER_SNAKE_CASE
+        (the feature-id shape, e.g. ``CONFIRMAT_HOLE``). Returns ``{}`` when no
+        rules were loaded (callers fall back to scanning rule YAML directly).
         """
-        # This is a stub; full implementation requires loading rule YAML.
-        return {}
+        result: dict[str, list[str]] = {}
+        for rule_id, rule in self.rules.items():
+            applies_to = rule.get("applies_to", []) or []
+            feature_refs = [
+                token
+                for token in applies_to
+                if isinstance(token, str)
+                and token.upper() not in self._DXF_ENTITY_TYPES
+                and (self.is_valid_feature_id(token) or (token.isupper() and "_" in token))
+            ]
+            if feature_refs:
+                result[rule_id] = feature_refs
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -173,17 +199,21 @@ class OntologyLoadError(Exception):
 class OntologyLoader:
     """Load ontology from a directory of YAML files."""
 
-    def load(self, ontology_dir: str | Path) -> Ontology:
+    def load(self, ontology_dir: str | Path, rules_dir: str | Path | None = None) -> Ontology:
         """Load and return a fully populated ``Ontology``."""
-        return load_ontology(ontology_dir)
+        return load_ontology(ontology_dir, rules_dir=rules_dir)
 
 
-def load_ontology(ontology_dir: str | Path) -> Ontology:
+def load_ontology(ontology_dir: str | Path, rules_dir: str | Path | None = None) -> Ontology:
     """Load ontology from a directory containing YAML definitions.
 
     Expected files (per Manufacturing_Ontology.md):
         features.yaml, operations.yaml, relationships.yaml,
         constraints.yaml, materials.yaml, VERSION
+
+    If *rules_dir* is given (or a sibling ``rules/`` directory exists next to
+    *ontology_dir*), rule definitions are loaded into ``ontology.rules`` so that
+    :meth:`Ontology.get_rule_feature_references` works.
     """
     ontology_dir = Path(ontology_dir)
 
@@ -210,7 +240,32 @@ def load_ontology(ontology_dir: str | Path) -> Ontology:
     # -- Materials ---------------------------------------------------------
     _load_materials(ontology, ontology_dir / "materials.yaml")
 
+    # -- Rules (optional) --------------------------------------------------
+    if rules_dir is None:
+        sibling = ontology_dir.parent / "rules"
+        if sibling.is_dir():
+            rules_dir = sibling
+    if rules_dir is not None:
+        _load_rules(ontology, Path(rules_dir))
+
     return ontology
+
+
+def _load_rules(ontology: Ontology, rules_dir: Path) -> None:
+    """Load rule definitions from ``*.yaml`` under *rules_dir* into ``ontology.rules``."""
+    if not rules_dir.is_dir():
+        return
+    for yaml_file in sorted(rules_dir.glob("*.yaml")):
+        try:
+            data = yaml.safe_load(yaml_file.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            logger.warning("Skipping malformed rule file: %s", yaml_file)
+            continue
+        for rule in data.get("rules", []) or []:
+            rule_id = rule.get("rule_id")
+            if rule_id:
+                ontology.rules[rule_id] = rule
+    logger.info("Loaded %d rule definitions", len(ontology.rules))
 
 
 # ---------------------------------------------------------------------------

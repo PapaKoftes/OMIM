@@ -10,9 +10,14 @@ from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
+    from omim import __version__
+
     parser = argparse.ArgumentParser(
         prog="omim",
         description="Open Manufacturing Intelligence Middleware",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"omim {__version__}"
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable debug logging"

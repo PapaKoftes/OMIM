@@ -655,20 +655,6 @@ class FeatureClassifier:
             )
 
         # ---------------------------------------------------------------
-        # Priority 9: Outermost closed contour (already handled for
-        # is_outer_boundary above, but catch contours on cut/border layer)
-        # ---------------------------------------------------------------
-        if (
-            geom_type in ("polyline", "lwpolyline", "contour")
-            and is_closed
-            and inferred_layer_type in ("cut", "border")
-            and not data.get("is_outer_boundary")
-        ):
-            # Heuristic: large closed contours on cut layers are profile cuts,
-            # but without containment analysis we fall through to P10 (cutout).
-            pass
-
-        # ---------------------------------------------------------------
         # Priority 10: Interior closed contour (cutout)
         # ---------------------------------------------------------------
         if (

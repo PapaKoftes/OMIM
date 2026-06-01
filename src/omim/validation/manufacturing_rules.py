@@ -424,10 +424,12 @@ def check_blind_feature_depth(mgg: ManufacturingGeometryGraph, **params: Any) ->
     for nid, data in mgg.geometry_nodes():
         if data.get("is_outer_boundary"):
             continue
-        # Check for depth info in node data
+        # Check for depth info in node data (populated from 2.5D Z elevations or
+        # layer-name conventions by the parser; None for pure-2D features).
         depth = data.get("depth_mm")
         if depth is None:
             continue
+        depth_source = data.get("depth_source")
 
         if depth > max_depth:
             elapsed = (time.perf_counter() - t0) * 1000
@@ -439,7 +441,7 @@ def check_blind_feature_depth(mgg: ManufacturingGeometryGraph, **params: Any) ->
                 message=(
                     f"Feature {nid} depth {depth:.1f} mm exceeds "
                     f"{max_depth_ratio * 100:.0f}% of {panel_thickness} mm "
-                    f"thickness ({max_depth:.1f} mm)"
+                    f"thickness ({max_depth:.1f} mm) [depth via {depth_source}]"
                 ),
                 confidence=0.70,
                 affected_node_ids=[nid],
@@ -447,6 +449,7 @@ def check_blind_feature_depth(mgg: ManufacturingGeometryGraph, **params: Any) ->
                 threshold_value=max_depth,
                 evidence={
                     "depth_mm": depth,
+                    "depth_source": depth_source,
                     "panel_thickness_mm": panel_thickness,
                     "max_depth_mm": max_depth,
                 },

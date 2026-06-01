@@ -77,6 +77,13 @@ class GeometryNode(BaseModel):
     diameter_mm: float | None = None
     radius_mm: float | None = None
 
+    # Depth / 2.5D. depth_mm is None for pure-2D features with no recoverable
+    # depth. depth_source records provenance: "z_elevation" (measured from 2.5D
+    # geometry), "layer_name" (inferred from a layer convention), or None.
+    depth_mm: float | None = None
+    depth_source: str | None = None
+    elevation_z: float | None = None
+
     # Panel boundary
     is_outer_boundary: bool | None = None
     contains_node_ids: list[str] = Field(default_factory=list)

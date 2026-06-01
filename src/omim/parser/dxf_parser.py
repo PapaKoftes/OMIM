@@ -22,6 +22,7 @@ import ezdxf
 from ezdxf import path as ezdxf_path
 from shapely.geometry import LinearRing, LineString, Point, Polygon
 
+from omim.parser.depth import resolve_depth
 from omim.parser.models import (
     DEFAULT_LAYER_MAP,
     PanelBoundary,
@@ -60,6 +61,30 @@ def _infer_layer_type(
             if upper.startswith(prefix.upper()):
                 return layer_type
     return "unknown"
+
+
+def _entity_elevation_z(entity) -> float | None:
+    """Best-effort raw Z elevation (WCS) of an ezdxf entity, or None.
+
+    Reads ``center.z`` (CIRCLE/ARC), ``start.z`` (LINE), or the ``elevation``
+    attribute (LWPOLYLINE). Returns None when no Z is available or it is zero
+    (the common 2D case). Never raises.
+    """
+    try:
+        dxf = entity.dxf
+        for attr in ("center", "start"):
+            pt = getattr(dxf, attr, None)
+            if pt is not None and hasattr(pt, "z"):
+                z = float(pt.z)
+                return z if abs(z) > 1e-9 else None
+        elev = getattr(dxf, "elevation", None)
+        if elev is not None:
+            # LWPOLYLINE elevation may be a float or a Vec3-like.
+            z = float(getattr(elev, "z", elev))
+            return z if abs(z) > 1e-9 else None
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return None
 
 
 def _file_hash(path: Path) -> str:
@@ -333,6 +358,11 @@ class DXFParser:
             entities, largest_closed_entity, warnings
         )
 
+        # Depth / 2.5D resolution. The reference (top-face) plane is the highest Z
+        # present; features below it have positive depth. Layer-name conventions
+        # are a fallback when no Z information exists.
+        self._resolve_depths(entities, largest_closed_entity, warnings)
+
         geometry = RawGeometry(
             source_file=str(filepath),
             source_file_hash=file_hash,
@@ -383,42 +413,52 @@ class DXFParser:
         eid = f"ent-{handle}{id_suffix}"
         layer = entity.dxf.layer if hasattr(entity.dxf, "layer") else "0"
         layer_type = _infer_layer_type(layer, self.config.layer_conventions)
+        elevation_z = _entity_elevation_z(entity)
 
         try:
             if etype == "CIRCLE":
-                return self._circle(entity, eid, handle, layer, layer_type,
-                                    units_from, warnings)
-            if etype == "ARC":
-                return self._arc(entity, eid, handle, layer, layer_type, units_from)
-            if etype == "LINE":
-                return self._line(entity, eid, handle, layer, layer_type, units_from)
-            if etype == "LWPOLYLINE":
-                return self._lwpolyline(entity, eid, handle, layer, layer_type,
+                produced = self._circle(entity, eid, handle, layer, layer_type,
                                         units_from, warnings)
-            if etype == "POLYLINE":
-                return self._legacy_polyline(entity, eid, handle, layer,
-                                             layer_type, units_from, warnings)
-            if etype == "SPLINE":
-                return self._spline(entity, eid, handle, layer, layer_type,
-                                    units_from, warnings)
-            if etype == "ELLIPSE":
-                return self._ellipse(entity, eid, handle, layer, layer_type,
-                                     units_from, warnings)
-            if etype == "INSERT":
+            elif etype == "ARC":
+                produced = self._arc(entity, eid, handle, layer, layer_type, units_from)
+            elif etype == "LINE":
+                produced = self._line(entity, eid, handle, layer, layer_type, units_from)
+            elif etype == "LWPOLYLINE":
+                produced = self._lwpolyline(entity, eid, handle, layer, layer_type,
+                                            units_from, warnings)
+            elif etype == "POLYLINE":
+                produced = self._legacy_polyline(entity, eid, handle, layer,
+                                                 layer_type, units_from, warnings)
+            elif etype == "SPLINE":
+                produced = self._spline(entity, eid, handle, layer, layer_type,
+                                        units_from, warnings)
+            elif etype == "ELLIPSE":
+                produced = self._ellipse(entity, eid, handle, layer, layer_type,
+                                         units_from, warnings)
+            elif etype == "INSERT":
+                # INSERT explosion stamps elevation on its own children.
                 return self._insert(entity, handle, units_from, warnings, depth)
+            else:
+                # Annotation / unsupported -> skip with warning.
+                code = (
+                    "annotation_skipped"
+                    if etype in ANNOTATION_ENTITY_TYPES
+                    else "entity_skipped"
+                )
+                warnings.append(ParseWarning(
+                    warning_code=code,
+                    message=f"Skipped entity type: {etype}",
+                    entity_id=handle,
+                ))
+                return []
 
-            # Annotation / unsupported -> skip with warning.
-            code = (
-                "annotation_skipped"
-                if etype in ANNOTATION_ENTITY_TYPES
-                else "entity_skipped"
-            )
-            warnings.append(ParseWarning(
-                warning_code=code,
-                message=f"Skipped entity type: {etype}",
-                entity_id=handle,
-            ))
-            return []
+            # Stamp the raw Z elevation onto each produced entity (used later for
+            # 2.5D depth resolution). Direct-geometry handlers don't set it.
+            if elevation_z is not None:
+                for raw_ent in produced:
+                    if raw_ent.elevation_z is None:
+                        raw_ent.elevation_z = elevation_z
+            return produced
         except Exception as e:  # noqa: BLE001 - one bad entity must not crash parse
             logger.warning("Failed to process %s %s: %s", etype, handle, e)
             warnings.append(ParseWarning(
@@ -427,6 +467,55 @@ class DXFParser:
                 entity_id=handle,
             ))
             return []
+
+    def _resolve_depths(
+        self,
+        entities: list[RawEntity],
+        boundary_entity: RawEntity | None,
+        warnings: list[ParseWarning],
+    ) -> None:
+        """Populate ``depth_mm`` / ``depth_source`` on each entity in place.
+
+        The reference (top-face) plane Z is taken as the maximum elevation present
+        across all entities (defaulting to the panel boundary's Z, else 0.0). A
+        feature sitting below that plane gets a measured ``z_elevation`` depth;
+        otherwise a layer-name convention is tried. Pure-2D files (all Z == 0 and
+        no depth tokens) leave depth as None — never guessed.
+        """
+        z_values = [e.elevation_z for e in entities if e.elevation_z is not None]
+        has_z = bool(z_values)
+        if has_z:
+            # The top face is the highest plane. Flat entities (boundary, top-face
+            # geometry) report no Z, so include an implicit 0.0 baseline: a pocket
+            # bottom drawn at Z=-6 below a Z=0 top face then has depth 6.
+            ref_z = max([0.0, *z_values])
+        else:
+            ref_z = None
+
+        any_z_depth = False
+        for ent in entities:
+            if boundary_entity is not None and ent.entity_id == boundary_entity.entity_id:
+                continue  # the boundary itself has no machining depth
+            depth, source = resolve_depth(
+                layer_name=ent.layer,
+                inferred_layer_type=ent.inferred_layer_type,
+                entity_z=ent.elevation_z,
+                reference_plane_z=ref_z,
+            )
+            if depth is not None:
+                ent.depth_mm = depth
+                ent.depth_source = source
+                if source == "z_elevation":
+                    any_z_depth = True
+
+        if has_z and any_z_depth:
+            warnings.append(ParseWarning(
+                warning_code="depth_2p5d_detected",
+                message=(
+                    f"2.5D geometry detected: depths measured from Z elevations "
+                    f"(reference plane Z={ref_z})."
+                ),
+            ))
 
     def _circle(self, entity, eid, handle, layer, layer_type, units_from,
                 warnings) -> list[RawEntity]:

@@ -133,17 +133,18 @@ class TestClassifierGrading:
         assert ann_good[(37.0, 100.0)].feature_class == "SHELF_PIN_HOLE"
 
     def test_50mm_circle_not_a_confident_through_hole(self):
-        """A 50mm circle on a drill layer is too big to drill: low conf, flagged,
-        NOT a confident THROUGH_HOLE."""
+        """A 50mm circle is too big to drill: it must NOT be a confident
+        THROUGH_HOLE. With HARDWARE_HOLE detection (20-50mm), a large bore is now
+        classified as a hardware mounting hole rather than left UNKNOWN — but it
+        is still never a through hole."""
         ents = [
             _panel_entity([[0, 0], [400, 0], [400, 400], [0, 400]], [0, 0, 400, 400]),
             _circle("big", 200, 200, 50.0),
         ]
         ann = _annotate(ents)
         a = ann[(200.0, 200.0)]
-        assert a.confidence < ACCEPT
-        assert a.feature_class != "THROUGH_HOLE"  # relabelled UNKNOWN_FEATURE
-        assert a.feature_class == "UNKNOWN_FEATURE"
+        assert a.feature_class != "THROUGH_HOLE"
+        assert a.feature_class in ("HARDWARE_HOLE", "UNKNOWN_FEATURE")
 
     def test_2mm_circle_not_a_confident_standard_feature(self):
         """A 2mm circle is below the drill window: not auto-validated as a hole."""

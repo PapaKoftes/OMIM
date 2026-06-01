@@ -115,6 +115,23 @@ def _layer_contains(layer: str, keyword: str) -> bool:
     return keyword.upper() in (layer or "").upper()
 
 
+def _bbox_aspect_ratio(bbox: list[float] | None) -> tuple[float | None, float]:
+    """Return (aspect_ratio, short_side_mm) of a [xmin,ymin,xmax,ymax] bbox.
+
+    aspect_ratio = long_side / short_side (>= 1). Returns (None, 0.0) when the
+    bbox is missing/degenerate.
+    """
+    if not bbox or len(bbox) < 4:
+        return None, 0.0
+    w = abs(bbox[2] - bbox[0])
+    h = abs(bbox[3] - bbox[1])
+    long_side = max(w, h)
+    short_side = min(w, h)
+    if short_side <= 1e-6:
+        return None, 0.0
+    return long_side / short_side, short_side
+
+
 # ---------------------------------------------------------------------------
 # Classifier
 # ---------------------------------------------------------------------------
@@ -513,6 +530,41 @@ class FeatureClassifier:
                     )
 
         # ---------------------------------------------------------------
+        # Priority 5b: large-diameter CIRCLE (20-50mm) -> HARDWARE_HOLE.
+        # Per Feature_Taxonomy.md HARDWARE_HOLE diameter_range 20-50mm. These are
+        # too large for a standard drill window and (without a HINGE keyword, which
+        # P1/P2 already handle) would otherwise fall through to UNKNOWN. A large
+        # round bore on a cut/drill layer is a hardware mounting hole.
+        # ---------------------------------------------------------------
+        if (
+            geom_type == "circle"
+            and diameter is not None
+            and 20.0 <= diameter <= 50.0
+            and inferred_layer_type in ("drill", "cut", "unknown")
+        ):
+            ceiling = SEMANTIC_CONFIDENCE_CEILINGS["material_heuristic"]
+            return self._make_annotation(
+                node_id=node_id,
+                feature_class="HARDWARE_HOLE",
+                confidence=min(0.68, ceiling),
+                evidence=[{
+                    "type": "diameter_range",
+                    "diameter_mm": diameter,
+                    "range_mm": [20.0, 50.0],
+                }, {
+                    "type": "geometry_type",
+                    "geometry_type": "circle",
+                }],
+                inference_method="material_heuristic",
+                rule="P5b: large-diameter circle (hardware mounting hole)",
+                alternatives=[AlternativeHypothesis(
+                    feature_class="INTERNAL_CUTOUT",
+                    confidence=0.40,
+                    reason=f"A {diameter:.0f}mm bore could be a round cutout",
+                )],
+            )
+
+        # ---------------------------------------------------------------
         # Priority 6: CIRCLE on DRILL layer
         # ---------------------------------------------------------------
         if geom_type == "circle" and (
@@ -629,6 +681,38 @@ class FeatureClassifier:
             and not data.get("is_outer_boundary")
             and (inferred_layer_type == "pocket" or _layer_contains(layer, "POCKET"))
         ):
+            # Distinguish an elongated channel (GROOVE) from a general POCKET by
+            # the bounding-box aspect ratio. A groove is a long, narrow milled
+            # slot (Feature_Taxonomy.md: aspect_ratio >= 5, width 4-15mm). This is
+            # purely 2D-geometric and verifiable from the polyline bbox.
+            aspect, short_side = _bbox_aspect_ratio(data.get("bounding_box"))
+            if aspect is not None and aspect >= 5.0 and 2.0 <= short_side <= 20.0:
+                return self._make_annotation(
+                    node_id=node_id,
+                    feature_class="GROOVE",
+                    confidence=0.68,
+                    evidence=[{
+                        "type": "geometry_type",
+                        "geometry_type": geom_type,
+                        "is_closed": True,
+                    }, {
+                        "type": "aspect_ratio",
+                        "aspect_ratio": round(aspect, 2),
+                        "short_side_mm": round(short_side, 2),
+                        "threshold": 5.0,
+                    }, {
+                        "type": "layer_match",
+                        "layer": layer,
+                        "inferred_type": "pocket",
+                    }],
+                    inference_method="machine_heuristic",
+                    rule="P8a: Elongated closed pocket polyline (groove)",
+                    alternatives=[AlternativeHypothesis(
+                        feature_class="POCKET",
+                        confidence=0.45,
+                        reason="Could be a general pocket rather than a groove",
+                    )],
+                )
             alternatives = [
                 AlternativeHypothesis(
                     feature_class="INTERNAL_CUTOUT",

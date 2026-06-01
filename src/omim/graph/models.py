@@ -84,6 +84,11 @@ class GeometryNode(BaseModel):
     depth_source: str | None = None
     elevation_z: float | None = None
 
+    # True when a curved entity (SPLINE/ELLIPSE/bulged polyline) was flattened to
+    # a many-vertex polyline at parse time. Consumers that analyse vertices (e.g.
+    # corner-angle checks) skip these to avoid chord-induced false positives.
+    is_approximated: bool = False
+
     # Panel boundary
     is_outer_boundary: bool | None = None
     contains_node_ids: list[str] = Field(default_factory=list)

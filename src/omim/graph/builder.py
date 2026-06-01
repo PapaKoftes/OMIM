@@ -151,6 +151,7 @@ class MGGBuilder:
             depth_mm=entity.depth_mm,
             depth_source=entity.depth_source,
             elevation_z=entity.elevation_z,
+            is_approximated=entity.is_approximated,
             is_outer_boundary=False,
             source_entity_id=entity.entity_id,
             source_file=raw.source_file,

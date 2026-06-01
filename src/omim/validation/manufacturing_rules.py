@@ -11,8 +11,41 @@ import math
 import time
 from typing import Any
 
+from shapely.geometry import Polygon
+
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.validation.models import RuleResult
+
+try:  # shapely >= 2.1 — GEOS-backed largest inscribed circle (gives the radius).
+    from shapely import maximum_inscribed_circle as _max_inscribed_circle
+except ImportError:  # pragma: no cover - fallback for shapely < 2.1
+    _max_inscribed_circle = None
+
+
+def _inscribed_diameter_mm(coords: list[list[float]]) -> float | None:
+    """Largest inscribed-circle *diameter* (mm) of a closed polygon, or None.
+
+    This is the widest tool that fits inside the pocket. Uses GEOS'
+    ``maximum_inscribed_circle`` (shapely >= 2.1) when available — it returns a
+    segment from the pole of inaccessibility to the nearest boundary point, whose
+    length is the inscribed *radius*. Falls back to ``shapely.ops.polylabel`` plus
+    a boundary-distance measurement on older shapely. Returns None on degenerate
+    or invalid geometry.
+    """
+    try:
+        poly = Polygon(coords)
+    except (TypeError, ValueError):
+        return None
+    if not poly.is_valid or poly.area <= 0:
+        return None
+    if _max_inscribed_circle is not None:
+        seg = _max_inscribed_circle(poly)
+        return float(seg.length) * 2.0
+    # Fallback: pole of inaccessibility + distance to boundary.
+    from shapely.ops import polylabel
+
+    center = polylabel(poly, tolerance=0.1)
+    return float(center.distance(poly.exterior)) * 2.0
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -196,22 +229,124 @@ def check_feature_spacing(mgg: ManufacturingGeometryGraph, **params: Any) -> lis
 # ---------------------------------------------------------------------------
 
 
+def _interior_sharp_corners(
+    coords: list[list[float]], min_angle_deg: float
+) -> list[float]:
+    """Return interior-corner angles (deg) sharper than *min_angle_deg*.
+
+    A milled inside corner cannot be sharper than the tool can produce; a true
+    sharp vertex (small interior angle) leaves an uncuttable corner. We measure
+    the angle at each vertex of the (assumed simple, closed) ring and report
+    concave vertices whose interior angle is below the threshold. Collinear or
+    near-collinear vertices (flattened arc chords) are ignored.
+    """
+    pts = [p[:2] for p in coords if isinstance(p, list | tuple) and len(p) >= 2]
+    # Drop a duplicated closing vertex.
+    if len(pts) >= 2 and abs(pts[0][0] - pts[-1][0]) < 1e-9 and abs(pts[0][1] - pts[-1][1]) < 1e-9:
+        pts = pts[:-1]
+    n = len(pts)
+    if n < 3:
+        return []
+
+    try:
+        ring_ccw = Polygon(pts).exterior.is_ccw
+    except (TypeError, ValueError):
+        return []
+
+    sharp: list[float] = []
+    for i in range(n):
+        a = pts[(i - 1) % n]
+        b = pts[i]
+        c = pts[(i + 1) % n]
+        v1 = (a[0] - b[0], a[1] - b[1])
+        v2 = (c[0] - b[0], c[1] - b[1])
+        m1 = math.hypot(*v1)
+        m2 = math.hypot(*v2)
+        if m1 < 1e-6 or m2 < 1e-6:
+            continue
+        cos_a = max(-1.0, min(1.0, (v1[0] * v2[0] + v1[1] * v2[1]) / (m1 * m2)))
+        angle = math.degrees(math.acos(cos_a))
+        # Skip near-straight vertices (flattened arcs / collinear points).
+        if angle > 175.0:
+            continue
+        # Concavity: the cross product sign relative to the ring winding tells us
+        # whether this vertex turns into the interior (a concave inside corner).
+        cross = v1[0] * v2[1] - v1[1] * v2[0]
+        is_concave = (cross > 0) if ring_ccw else (cross < 0)
+        if is_concave and angle < min_angle_deg:
+            sharp.append(round(angle, 1))
+    return sharp
+
+
 def check_tool_radius_corner(mgg: ManufacturingGeometryGraph, **params: Any) -> list[RuleResult]:
-    """MFG-003: Internal corner radius >= 3mm. confidence_ceiling=0.65. Placeholder."""
+    """MFG-003: internal milled corners must not be sharper than the tool can
+    produce. confidence_ceiling=0.65.
+
+    For each interior closed polyline on a pocket/cut layer, flag concave inside
+    corners with an interior angle below ``min_corner_angle_deg`` (default 90°: a
+    round router bit physically cannot cut an inside corner sharper than a right
+    angle to a true point, so it leaves an uncut radius). Bulge-flattened /
+    approximated polylines are skipped — their many near-collinear chord vertices
+    would false-positive — so this is conservative by design.
+    """
     t0 = time.perf_counter()
     min_radius = params.get("min_corner_radius_mm", 3.0)
-    # Placeholder: full implementation requires computing corner radii from polyline vertices
+    min_angle = params.get("min_corner_angle_deg", 90.0)
+    results: list[RuleResult] = []
+
+    for nid, data in mgg.geometry_nodes():
+        if data.get("is_outer_boundary"):
+            continue
+        if data.get("geometry_type") not in ("polyline", "lwpolyline", "contour"):
+            continue
+        if not data.get("is_closed"):
+            continue
+        if data.get("is_approximated"):
+            continue  # flattened arcs would false-positive
+        if data.get("inferred_layer_type") not in ("pocket", "cut", "engrave"):
+            continue
+        coords = data.get("coordinates", [])
+        if not (isinstance(coords, list) and len(coords) >= 3
+                and isinstance(coords[0], list)):
+            continue
+
+        sharp = _interior_sharp_corners(coords, min_angle)
+        if sharp:
+            results.append(_make_result(
+                rule_id="MFG-003",
+                rule_name="Tool Radius Corner",
+                passed=False,
+                severity="WARNING",
+                message=(
+                    f"Pocket {nid} has {len(sharp)} sharp internal corner(s) "
+                    f"(angles {sharp} deg) that a {min_radius} mm-radius tool "
+                    f"cannot fully cut"
+                ),
+                confidence=0.65,
+                affected_node_ids=[nid],
+                measured_value=min(sharp),
+                threshold_value=min_angle,
+                evidence={
+                    "sharp_corner_angles_deg": sharp,
+                    "min_corner_radius_mm": min_radius,
+                    "min_corner_angle_deg": min_angle,
+                },
+            ))
+
+    if not results:
+        results.append(_make_result(
+            rule_id="MFG-003",
+            rule_name="Tool Radius Corner",
+            passed=True,
+            severity="PASS",
+            message="No sharp internal corners detected (or none on milled layers)",
+            confidence=0.65,
+            threshold_value=min_radius,
+        ))
     elapsed = (time.perf_counter() - t0) * 1000
-    return [_make_result(
-        rule_id="MFG-003",
-        rule_name="Tool Radius Corner",
-        passed=True,
-        severity="PASS",
-        message="Tool radius corner check (placeholder — requires polyline corner analysis)",
-        confidence=0.65,
-        threshold_value=min_radius,
-        execution_time_ms=elapsed,
-    )]
+    for r in results:
+        r.execution_time_ms = elapsed
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -220,23 +355,74 @@ def check_tool_radius_corner(mgg: ManufacturingGeometryGraph, **params: Any) -> 
 
 
 def check_pocket_width(mgg: ManufacturingGeometryGraph, **params: Any) -> list[RuleResult]:
-    """MFG-004: Inscribed diameter >= 1.2 * 6mm = 7.2mm. confidence_ceiling=0.65. Placeholder."""
+    """MFG-004: a pocket/closed milled region must admit the tool — its maximum
+    inscribed circle diameter must be >= tool_diameter * multiplier (default
+    6mm * 1.2 = 7.2mm). confidence_ceiling=0.65.
+
+    Computes the real largest-inscribed-circle diameter (the widest cutter that
+    fits) for each interior closed polyline/contour on a pocket/cut layer. A
+    pocket narrower than the tool can reach is flagged WARNING.
+    """
     t0 = time.perf_counter()
     tool_diameter = params.get("tool_diameter_mm", 6.0)
     multiplier = params.get("multiplier", 1.2)
     min_width = tool_diameter * multiplier  # 7.2mm
-    # Placeholder: full implementation requires inscribed circle computation
+    results: list[RuleResult] = []
+
+    for nid, data in mgg.geometry_nodes():
+        if data.get("is_outer_boundary"):
+            continue
+        if data.get("geometry_type") not in ("polyline", "lwpolyline", "contour"):
+            continue
+        if not data.get("is_closed"):
+            continue
+        if data.get("inferred_layer_type") not in ("pocket", "cut", "engrave"):
+            continue
+        coords = data.get("coordinates", [])
+        if not (isinstance(coords, list) and len(coords) >= 3
+                and isinstance(coords[0], list)):
+            continue
+
+        inscribed = _inscribed_diameter_mm(coords)
+        if inscribed is None:
+            continue
+
+        if inscribed < min_width:
+            results.append(_make_result(
+                rule_id="MFG-004",
+                rule_name="Pocket Width",
+                passed=False,
+                severity="WARNING",
+                message=(
+                    f"Pocket {nid} inscribed width {inscribed:.2f} mm is below the "
+                    f"minimum {min_width:.1f} mm for a {tool_diameter} mm tool "
+                    f"(x{multiplier})"
+                ),
+                confidence=0.65,
+                affected_node_ids=[nid],
+                measured_value=round(inscribed, 3),
+                threshold_value=min_width,
+                evidence={
+                    "inscribed_diameter_mm": round(inscribed, 3),
+                    "tool_diameter_mm": tool_diameter,
+                    "min_width_mm": min_width,
+                },
+            ))
+
+    if not results:
+        results.append(_make_result(
+            rule_id="MFG-004",
+            rule_name="Pocket Width",
+            passed=True,
+            severity="PASS",
+            message="All pockets admit the tool (inscribed width >= minimum)",
+            confidence=0.65,
+            threshold_value=min_width,
+        ))
     elapsed = (time.perf_counter() - t0) * 1000
-    return [_make_result(
-        rule_id="MFG-004",
-        rule_name="Pocket Width",
-        passed=True,
-        severity="PASS",
-        message="Pocket width check (placeholder — requires inscribed diameter analysis)",
-        confidence=0.65,
-        threshold_value=min_width,
-        execution_time_ms=elapsed,
-    )]
+    for r in results:
+        r.execution_time_ms = elapsed
+    return results
 
 
 # ---------------------------------------------------------------------------

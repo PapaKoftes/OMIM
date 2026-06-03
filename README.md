@@ -31,6 +31,9 @@ omim analyze panel.dxf
 # Validate only
 omim validate panel.dxf
 
+# Analyse a multi-panel nest (stock sheet carrying many panels)
+omim nest sheet.dxf            # text summary; -o out.json for full layout
+
 # Generate a synthetic dataset (standards-grounded, validator-gated)
 omim generate ./data/synthetic -n 1000 --seed 42 --invalid-ratio 0.30
 
@@ -141,8 +144,44 @@ data/
 
 - **Material:** MDF, plywood, melamine panels (16–25mm)
 - **Operations:** CNC drilling, routing, pocketing, engraving
-- **Features:** Shelf pin holes, dowel holes, hinge cups, Euro screws, cable grommets
-- **Validation:** Edge distances, hole spacing, diameter ranges, panel bounds
+- **Features:** Shelf pin holes, dowel holes, hinge cups, Euro screws, cable grommets, hardware holes, grooves
+- **Validation:** Edge distances, hole spacing, diameter ranges, panel bounds, pocket width, sharp corners, blind-feature depth
+
+## Depth / 2.5D
+
+DXF is geometry-only, so machining depth is **inferred, not read**. OMIM recovers
+depth from two real sources, each tagged with `depth_source` for provenance:
+
+- **`z_elevation`** — true 2.5D geometry (a feature drawn below the top face);
+  depth is *measured* (highest trust).
+- **`layer_name`** — a shop convention such as `POCKET_D6` / `POCKET_6MM`;
+  depth is *inferred*.
+
+Pure-2D features with no depth cue keep `depth_mm = None` (never guessed). This
+feeds MFG-007 (blind-feature depth).
+
+## Multi-panel nesting
+
+`omim nest file.dxf` (or `POST /api/v1/nest`) understands a DXF that is a whole
+**nest** — a stock sheet carrying many panels — not just a single panel. It
+detects the sheet (explicit `SHEET`/`STOCK` layer or a containing contour),
+identifies the panels, assigns each feature to its panel, and reports utilization,
+overlapping panels, and panels outside the sheet. Optional `omim[nesting]` extra
+(`rectpack`) adds an ideal-packing comparison; it degrades gracefully when absent.
+
+## Data-driven rules
+
+Validation thresholds live in `data/rules/*.yaml` and are **loaded by the engine**
+(not hardcoded): edit a threshold or set `enabled: false` and the verdict changes.
+`RuleEngine(rules_dir=...)` selects a ruleset; the packaged defaults reproduce the
+documented behaviour.
+
+## P&ID: the real-data path
+
+The P&ID domain ingests real, human-annotated graphs (PID2Graph, CC BY-SA — see
+`data/pid/README.md`). Because ground-truth symbol classes are human annotations
+and OMIM predicts independently from ISA-5.1 tags, `omim.domains.pid.benchmark`
+gives a **non-circular** capability score — unlike the synthetic panel grounding.
 
 ## Tech Stack
 

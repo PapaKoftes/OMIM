@@ -120,6 +120,17 @@ def test_validate(client, dxf_bytes):
     assert body["validation"]["overall_valid"] is True
 
 
+def test_nest(client, dxf_bytes):
+    r = client.post(f"{API}/nest", files=_upload(dxf_bytes))
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    assert "nesting" in body
+    # A single-panel DXF is not a nest.
+    assert body["nesting"]["panel_count"] >= 1
+    assert isinstance(body["nesting"]["is_nested"], bool)
+
+
 def test_analyze_shape(client, dxf_bytes):
     r = client.post(f"{API}/analyze", files=_upload(dxf_bytes))
     assert r.status_code == 200

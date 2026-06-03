@@ -34,6 +34,12 @@ omim validate panel.dxf
 # Analyse a multi-panel nest (stock sheet carrying many panels)
 omim nest sheet.dxf            # text summary; -o out.json for full layout
 
+# Turn a friend's folder of panel DXFs into a labeled dataset + review queue
+omim tune-ruleset ./delivery -o tuned.yaml     # 1. tune thresholds to the corpus
+omim build-dataset ./delivery ./dataset        # 2. auto-detect layout, identify,
+                                               #    auto-label every panel, emit dataset
+# 3. open ./dataset/review_queue.jsonl, set each row's decision, re-import to finalize
+
 # Generate a synthetic dataset (standards-grounded, validator-gated)
 omim generate ./data/synthetic -n 1000 --seed 42 --invalid-ratio 0.30
 
@@ -175,6 +181,34 @@ Validation thresholds live in `data/rules/*.yaml` and are **loaded by the engine
 (not hardcoded): edit a threshold or set `enabled: false` and the verdict changes.
 `RuleEngine(rules_dir=...)` selects a ruleset; the packaged defaults reproduce the
 documented behaviour.
+
+## From a DXF delivery to a labeled dataset
+
+Point OMIM at a folder of panel DXFs (from a friend, a shop, anywhere) and it
+builds both an **identification ruleset** and a **large labeled dataset** — with a
+human-in-the-loop review step so the labels are trustworthy, not just plausible.
+The identification stack is layered into separate modules:
+
+| Layer | Module | What it identifies |
+|---|---|---|
+| Feature | `omim.semantic.classifier` | holes, pockets, grooves, hinge cups… per node |
+| Part | `omim.identify.parts` | each panel: DOOR / SIDE_PANEL / SHELF / BACK… |
+| Assembly | `omim.identify.assembly` | which panels form one 3D construction (+ joins) |
+| Project | `omim.identify.project` | the full tree: project → assemblies → panels |
+
+The pipeline (`omim build-dataset`):
+1. **auto-detects layout** — per-project folders, a flat pile, or multi-panel nest
+   files (`omim.pipeline.detect`);
+2. **auto-labels** every panel with per-label confidence (`omim.labeling.AutoLabeler`);
+3. **routes low-confidence labels to a review queue** — an editable JSONL where you
+   set `confirm` / `correct` / `reject`; corrections become gold ground truth
+   (`omim.labeling.ReviewQueue`);
+4. **writes** per-panel samples (`mgg.json` + `labels.json`), project trees, the
+   review queue, and a manifest.
+
+`omim tune-ruleset` first measures the corpus and emits thresholds tuned to *your*
+parts (e.g. the shop's actual hole sizes and grid), keeping catalog defaults where
+the corpus is too sparse — fully transparent about measured-vs-defaulted.
 
 ## P&ID: the real-data path
 

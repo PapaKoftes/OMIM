@@ -6,15 +6,17 @@ and conventions. This module measures the corpus and emits a tuned ruleset YAML
 that the (already data-driven) RuleEngine and the part identifier can load —
 adapting thresholds to the corpus without touching code.
 
-What it measures and tunes:
-  * hole-diameter clusters -> per-feature target diameters + tolerances
+What it measures and tunes (geometric feature thresholds only — it does NOT tune
+part-type/assembly identification thresholds):
+  * hole-diameter clusters -> per-feature target diameters + tolerances (3·stdev)
   * observed panel thicknesses -> default panel thickness for depth rules
   * shelf-pin column spacing -> the System-32 target (or the shop's actual grid)
-  * observed part-type frequencies -> recorded for transparency
 
 It deliberately does NOT invent values: a threshold is only tuned when the corpus
 provides enough samples (configurable ``min_samples``); otherwise the catalog
-default is kept and the field is flagged ``source: catalog_default``.
+default is kept and the field is flagged ``source: catalog_default``. Panel
+thickness in particular usually stays at the catalog default, because 2D DXFs
+rarely encode stock thickness (it requires a layer-name convention or 2.5D Z).
 """
 
 from __future__ import annotations
@@ -195,16 +197,40 @@ def _cluster_by_center(clusters: dict) -> dict[float, dict]:
     return out
 
 
+#: Default ±tolerance (mm) per diameter param when the corpus can't measure one.
+_DEFAULT_TOLERANCES = {
+    "shelf_pin_diameter_mm": 0.5,
+    "hinge_cup_diameter_mm": 1.0,
+    "confirmat_diameter_mm": 0.5,
+}
+#: Floor so a suspiciously-tight cluster never yields an unusably small tolerance.
+_MIN_TUNED_TOLERANCE_MM = 0.2
+
+
 def _tune_diameter(params, sources, cluster_map, center, param_name, min_samples):
+    """Tune both the target diameter AND its tolerance from the cluster.
+
+    The tolerance is derived from the measured spread (3·stdev, floored), so a
+    shop whose 5mm holes scatter ±0.3mm gets a wider band than one holding ±0.05.
+    Writes ``<param_name>`` and ``<base>_tolerance_mm``; both fall back to the
+    catalog default (flagged) when the cluster is too sparse.
+    """
+    tol_name = param_name.replace("_diameter_mm", "_tolerance_mm")
     info = cluster_map.get(center)
     count = (info or {}).get("count", 0) or 0
     mean = (info or {}).get("measured_mean_mm")
+    stdev = (info or {}).get("measured_stdev_mm")
     if info and count >= min_samples and mean is not None:
         params[param_name] = round(float(mean), 3)
         sources[param_name] = "corpus_measured"
+        tol = max(_MIN_TUNED_TOLERANCE_MM, round(3.0 * float(stdev or 0.0), 3))
+        params[tol_name] = tol
+        sources[tol_name] = "corpus_measured"
     else:
         params[param_name] = _CATALOG_DEFAULTS[param_name]
         sources[param_name] = "catalog_default"
+        params[tol_name] = _DEFAULT_TOLERANCES.get(param_name, 0.5)
+        sources[tol_name] = "catalog_default"
 
 
 def _dominant_spacing(spacings: list[float]) -> float | None:

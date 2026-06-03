@@ -93,6 +93,34 @@ def parse_thickness_from_layer(layer_name: str) -> float | None:
     return _first_match(_MM_RE, layer_name, _MIN_THICK_MM, _MAX_THICK_MM)
 
 
+def resolve_panel_thickness(
+    layers: list[str],
+    z_values: list[float] | None = None,
+) -> tuple[float | None, str | None]:
+    """Resolve a panel's STOCK thickness (mm) and its provenance source.
+
+    This is the panel's material thickness — NOT a feature depth. It is recovered,
+    in precedence order:
+      1. ``z_extent`` — a true 2.5D solid spans a Z range; thickness = max-min Z.
+      2. ``layer_name`` — a thickness convention on any layer (PANEL_18MM/THK18).
+    Returns ``(None, None)`` when a flat 2D DXF carries no thickness cue — the
+    value is never guessed.
+    """
+    # 1. 2.5D Z extent (a genuine measurement when present).
+    if z_values:
+        zs = [z for z in z_values if z is not None]
+        if zs:
+            extent = max(zs) - min(zs)
+            if _MIN_THICK_MM <= extent <= _MAX_THICK_MM:
+                return round(extent, 3), "z_extent"
+    # 2. Layer-name convention (first plausible match wins, deterministic order).
+    for layer in layers:
+        t = parse_thickness_from_layer(layer)
+        if t is not None:
+            return t, "layer_name"
+    return None, None
+
+
 def depth_from_elevation(
     entity_z: float | None, reference_plane_z: float
 ) -> float | None:

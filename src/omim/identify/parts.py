@@ -32,13 +32,13 @@ def _feature_summary(annotations: SemanticAnnotations) -> dict[str, int]:
 
 
 def _panel_thickness(mgg: ManufacturingGeometryGraph) -> float | None:
-    """Best available panel thickness: max recovered feature depth, else None."""
-    depths = [
-        d.get("depth_mm")
-        for _n, d in mgg.geometry_nodes()
-        if d.get("depth_mm") is not None
-    ]
-    return max(depths) if depths else None
+    """The panel's STOCK thickness from metadata (layer convention or 2.5D Z
+    extent), or None when the DXF carries no thickness cue.
+
+    Deliberately NOT derived from feature ``depth_mm`` — a pocket/blind-hole depth
+    is not the panel thickness. Returns None rather than guessing.
+    """
+    return mgg.metadata.panel_thickness_mm
 
 
 def identify_part(

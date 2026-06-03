@@ -77,3 +77,53 @@ class AutoLabeler:
             graph_id=graph_id,
             labels=labels,
         )
+
+
+def labelset_from_project(project, accept_threshold: float = 0.75) -> LabelSet:
+    """Build a reviewable LabelSet of ASSEMBLY + PROJECT labels for a project tree.
+
+    Assembly grouping and the project structure are the least-certain layer, so
+    they MUST be reviewable rather than written straight to JSON. Each assembly
+    becomes an ASSEMBLY label (value = assembly_type, confidence from the grouper);
+    the project becomes one PROJECT label. Confidence-banded like panel labels.
+    """
+    labels: list[Label] = []
+
+    def status(conf: float) -> ReviewStatus:
+        return ReviewStatus.AUTO_ACCEPTED if conf >= accept_threshold else ReviewStatus.NEEDS_REVIEW
+
+    for asm in project.assemblies:
+        labels.append(Label(
+            label_id=f"{project.project_id}:asm:{asm.assembly_id}",
+            kind=LabelKind.ASSEMBLY,
+            target_id=asm.assembly_id,
+            value=asm.assembly_type,
+            confidence=asm.confidence,
+            source_layer="omim.identify.assembly",
+            evidence=asm.evidence,
+            alternatives=[{"panel_ids": [p.panel_id for p in asm.panels]}],
+            review_status=status(asm.confidence),
+        ))
+
+    # One project-level label summarising the structure (always reviewed: the
+    # project grouping is a heuristic rollup, never auto-accepted as certain).
+    n_asm = project.assembly_count
+    proj_conf = 0.6 if n_asm else 0.3
+    labels.append(Label(
+        label_id=f"{project.project_id}:project",
+        kind=LabelKind.PROJECT,
+        target_id=project.project_id,
+        value=f"{n_asm}_assemblies_{project.panel_count}_panels",
+        confidence=proj_conf,
+        source_layer="omim.identify.project",
+        evidence=[{"assembly_count": n_asm, "panel_count": project.panel_count,
+                   "ungrouped": len(project.ungrouped_panels)}],
+        review_status=status(proj_conf),
+    ))
+
+    return LabelSet(
+        set_id=f"labelset:project:{project.project_id}",
+        source_file="",
+        graph_id=project.project_id,
+        labels=labels,
+    )

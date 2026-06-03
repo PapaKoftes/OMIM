@@ -4,14 +4,20 @@ Given several panels (each a built MGG + its PartIdentification), infer which
 panels belong to the same 3D piece (a carcass, a drawer box, a frame) and how
 they likely join. This is the "3D construction from 2D parts" layer.
 
-Pure, read-only, heuristic (authority Level 4-5). Signals:
-  * shared panel thickness (parts of one carcass are usually one stock thickness)
-  * complementary dimensions (a side's height == the top/bottom's depth, etc.)
-  * matching edge-joinery hole counts (dowel/confirmat holes that pair up)
-  * a coherent part-type set (2 sides + top + bottom + back = a carcass)
+Pure, read-only, heuristic (authority Level 4-5).
 
-When grouping signals are weak/absent, panels are returned as their own
-single-panel assemblies rather than force-merged.
+Grouping signals actually used (kept deliberately conservative):
+  * source file/delivery scope — panels from different DXF files are never merged
+    (the primary guard against conflating unrelated cabinets in a flat pile)
+  * shared stock thickness within that scope (parts of one carcass share thickness)
+  * coherent part-type set raises confidence + sets assembly_type (>=2 carcass
+    parts -> CARCASS; any drawer part -> DRAWER)
+
+The ``assembly_type`` / confidence reflect the part-set; ``joins`` are *hypotheses*
+(side<->cap) for downstream review, not asserted facts. When the grouping signal
+is weak/absent, panels are returned as single-panel assemblies rather than
+force-merged. NOTE: complementary-dimension and joinery-hole matching are not yet
+used as grouping signals — they are candidate future refinements.
 """
 
 from __future__ import annotations
@@ -89,15 +95,15 @@ def identify_assemblies(
         for pid, src in panels
     ]
 
-    # Group by thickness band; panels with no thickness go to their own bucket.
-    buckets: dict[int | None, list[PanelRef]] = {}
-    no_thickness: list[PanelRef] = []
+    # Group by (source_file, thickness band). Scoping by source_file FIRST is the
+    # key guard: panels from different DXF deliveries are never merged into one
+    # assembly just because they share a common stock thickness (e.g. a flat pile
+    # of 18mm panels from 5 different cabinets stays 5 groups, not one). Panels
+    # with no recovered thickness fall back to grouping by source_file alone.
+    buckets: dict[tuple[str, int | None], list[PanelRef]] = {}
     for r in refs:
-        key = _thickness_key(r.thickness_mm, thickness_tol)
-        if key is None:
-            no_thickness.append(r)
-        else:
-            buckets.setdefault(key, []).append(r)
+        key = (r.source_file, _thickness_key(r.thickness_mm, thickness_tol))
+        buckets.setdefault(key, []).append(r)
 
     assemblies: list[AssemblyIdentification] = []
     idx = 0
@@ -131,14 +137,14 @@ def identify_assemblies(
             provenance=_provenance(),
         )
 
-    for group in buckets.values():
-        if len(group) >= min_group:
+    for (_src, band), group in buckets.items():
+        grouped = band is not None and len(group) >= min_group
+        if grouped:
             assemblies.append(_make(group, thickness_grouped=True))
         else:
-            # Too few to be a confident assembly -> singletons.
+            # Too few, or no thickness signal -> emit as singletons (honest: we
+            # won't assert a multi-panel assembly without a real grouping signal).
             for r in group:
-                assemblies.append(_make([r], thickness_grouped=True))
-    for r in no_thickness:
-        assemblies.append(_make([r], thickness_grouped=False))
+                assemblies.append(_make([r], thickness_grouped=band is not None))
 
     return assemblies

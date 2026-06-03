@@ -217,6 +217,12 @@ class GraphMetadata(BaseModel):
     panel_bbox: list[float] | None = None  # [xmin, ymin, xmax, ymax]
     panel_width_mm: float | None = None
     panel_height_mm: float | None = None
+    # Panel STOCK thickness (mm) — distinct from any feature depth. Recovered from
+    # a layer-name convention (PANEL_18MM/THK18) or a 2.5D Z-extent; None when the
+    # 2D DXF carries no thickness cue (never guessed). panel_thickness_source is
+    # "layer_name" | "z_extent" | None.
+    panel_thickness_mm: float | None = None
+    panel_thickness_source: str | None = None
 
     geometry_node_count: int = 0
     feature_node_count: int = 0

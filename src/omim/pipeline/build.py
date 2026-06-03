@@ -24,10 +24,17 @@ from omim.graph.builder import MGGBuilder
 from omim.identify.parts import identify_part
 from omim.identify.project import build_project_structure
 from omim.labeling import AutoLabeler, LabelSet, ReviewQueue
-from omim.nesting import analyze_nesting
+from omim.labeling.autolabeler import labelset_from_project
+from omim.nesting import analyze_nesting, split_raw_geometry_by_panels
 from omim.parser.dxf_parser import DXFParser
 from omim.pipeline.detect import CorpusLayout, detect_layout
 from omim.semantic.classifier import FeatureClassifier
+
+# Fixed timestamp for byte-reproducible dataset artifacts. The builder accepts an
+# injectable creation_timestamp precisely so output does not embed wall-clock time;
+# the dataset pipeline pins it so two runs over identical input produce identical
+# mgg.json files (mirrors the synthetic generator's determinism guarantee).
+_PINNED_TIMESTAMP = "2000-01-01T00:00:00+00:00"
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +69,7 @@ class DatasetBuilder:
         accept_threshold: float = 0.75,
         reject_threshold: float = 0.30,
     ) -> None:
+        self._accept_threshold = accept_threshold
         self._parser = DXFParser()
         self._builder = MGGBuilder()
         self._classifier = FeatureClassifier()
@@ -74,29 +82,35 @@ class DatasetBuilder:
     # -- panel enumeration -------------------------------------------------
 
     def _panels_from_file(self, path: Path, project: str) -> list[PanelRecord]:
-        """Parse one DXF into one or more panel records (splitting nests)."""
+        """Parse one DXF into one or more panel records, genuinely splitting nests.
+
+        A multi-panel nest is split into one independent RawGeometry per panel
+        (omim.nesting.split), and each is built + labeled as its own panel — so a
+        sheet of N panels yields N records, not 1. Single-panel files yield 1.
+        Uses a pinned creation_timestamp for byte-reproducible mgg.json output.
+        """
         result = self._parser.parse(path)
         if not result.success or not result.geometry:
             raise ValueError(f"parse failed: {[e.error_code for e in result.errors]}")
-        mgg = self._builder.build(result.geometry)
 
+        sub_geometries = split_raw_geometry_by_panels(result.geometry)
         records: list[PanelRecord] = []
-        layout = analyze_nesting(mgg)
-        # For a nest we still label the whole MGG once (per-panel splitting of the
-        # MGG into independent sub-MGGs is a future refinement); we attach the
-        # nesting layout so downstream consumers see the panel breakdown.
-        ls = self._labeler.label_panel(mgg)
-        part = identify_part(mgg, self._classifier.classify(mgg))
-        mgg_dict = mgg.to_dict()
-        mgg_dict["_nesting"] = layout.model_dump()
-        records.append(PanelRecord(
-            panel_id=mgg.metadata.graph_id,
-            source_file=str(path),
-            project=project,
-            label_set=ls,
-            part_type=part.part_type,
-            mgg_dict=mgg_dict,
-        ))
+        for raw in sub_geometries:
+            mgg = self._builder.build(raw, creation_timestamp=_PINNED_TIMESTAMP)
+            annotations = self._classifier.classify(mgg)
+            ls = self._labeler.label_panel(mgg)
+            part = identify_part(mgg, annotations)
+            mgg_dict = mgg.to_dict()
+            # Record the nesting view of this (now single-panel) graph for context.
+            mgg_dict["_nesting"] = analyze_nesting(mgg).model_dump()
+            records.append(PanelRecord(
+                panel_id=mgg.metadata.graph_id,
+                source_file=str(path),
+                project=project,
+                label_set=ls,
+                part_type=part.part_type,
+                mgg_dict=mgg_dict,
+            ))
         return records
 
     # -- main build --------------------------------------------------------
@@ -157,6 +171,11 @@ class DatasetBuilder:
             )
             (output_dir / "projects" / f"{_safe(project)}.json").write_text(
                 structure.model_dump_json(indent=2), encoding="utf-8"
+            )
+            # Assembly + project identifications are heuristic -> they go through
+            # the SAME review queue as feature/part labels (not written unreviewed).
+            label_sets.append(
+                labelset_from_project(structure, accept_threshold=self._accept_threshold)
             )
 
         # --- review queue ---

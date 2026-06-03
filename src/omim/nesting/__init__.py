@@ -7,5 +7,11 @@ layout sanity (utilization, overlaps, out-of-sheet).
 
 from omim.nesting.analyzer import analyze_nesting
 from omim.nesting.models import NestedPanel, NestingLayout
+from omim.nesting.split import split_raw_geometry_by_panels
 
-__all__ = ["NestedPanel", "NestingLayout", "analyze_nesting"]
+__all__ = [
+    "NestedPanel",
+    "NestingLayout",
+    "analyze_nesting",
+    "split_raw_geometry_by_panels",
+]

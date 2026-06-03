@@ -11,7 +11,24 @@ Every identification carries confidence, ranked alternatives, evidence, and
 provenance, and never mutates the MGG.
 """
 
-from omim.identify.models import PART_TYPES, PartIdentification
+from omim.identify.assembly import identify_assemblies
+from omim.identify.models import (
+    PART_TYPES,
+    AssemblyIdentification,
+    PanelRef,
+    PartIdentification,
+    ProjectStructure,
+)
 from omim.identify.parts import identify_part
+from omim.identify.project import build_project_structure
 
-__all__ = ["PART_TYPES", "PartIdentification", "identify_part"]
+__all__ = [
+    "PART_TYPES",
+    "AssemblyIdentification",
+    "PanelRef",
+    "PartIdentification",
+    "ProjectStructure",
+    "build_project_structure",
+    "identify_assemblies",
+    "identify_part",
+]

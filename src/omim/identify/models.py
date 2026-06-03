@@ -48,3 +48,55 @@ class PartIdentification(BaseModel):
     height_mm: float | None = None
     thickness_mm: float | None = None
     feature_summary: dict[str, int] = Field(default_factory=dict)  # feature_class -> count
+
+
+# ---------------------------------------------------------------------------
+# Assembly / project models
+# ---------------------------------------------------------------------------
+
+
+class PanelRef(BaseModel):
+    """A panel's identity within an assembly (its part id + identified type)."""
+
+    panel_id: str
+    part_type: str = "UNKNOWN_PART"
+    part_confidence: float = 0.0
+    width_mm: float | None = None
+    height_mm: float | None = None
+    thickness_mm: float | None = None
+    source_file: str = ""
+
+
+class JoinHypothesis(BaseModel):
+    """A hypothesised join between two panels in an assembly."""
+
+    panel_a: str
+    panel_b: str
+    join_type: str  # e.g. "DOWEL", "CONFIRMAT", "EDGE_BUTT"
+    confidence: float = 0.0
+    reason: str = ""
+
+
+class AssemblyIdentification(BaseModel):
+    """A group of panels inferred to form one 3D construction."""
+
+    assembly_id: str
+    panels: list[PanelRef] = Field(default_factory=list)
+    panel_count: int = 0
+    confidence: float = 0.0
+    assembly_type: str = "CARCASS"  # CARCASS | DRAWER | FRAME | UNKNOWN_ASSEMBLY
+    joins: list[JoinHypothesis] = Field(default_factory=list)
+    evidence: list[dict] = Field(default_factory=list)
+    provenance: dict | None = None
+
+
+class ProjectStructure(BaseModel):
+    """The full project tree: project -> assemblies -> panels -> (features)."""
+
+    project_id: str
+    name: str = ""
+    assemblies: list[AssemblyIdentification] = Field(default_factory=list)
+    assembly_count: int = 0
+    panel_count: int = 0
+    ungrouped_panels: list[PanelRef] = Field(default_factory=list)
+    provenance: dict | None = None

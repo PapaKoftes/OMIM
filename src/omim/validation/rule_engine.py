@@ -7,6 +7,7 @@ import logging
 import time
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.graph.models import ConstraintNode, EdgeType
@@ -14,19 +15,39 @@ from omim.provenance.models import InferenceMethod, ProvenanceRecord
 from omim.validation.geometric_rules import GEOMETRIC_HANDLERS
 from omim.validation.manufacturing_rules import MANUFACTURING_HANDLERS
 from omim.validation.models import RuleResult, ValidationReport
+from omim.validation.ruleset import RuleConfig, load_ruleset
 
 logger = logging.getLogger(__name__)
 
 
 class RuleEngine:
     """Run Layer 1 (GEO-001..GEO-008) and Layer 2 (MFG-001..MFG-012) rules,
-    returning a ValidationReport and optionally annotating the MGG."""
+    returning a ValidationReport and optionally annotating the MGG.
 
-    def __init__(self) -> None:
+    Rule thresholds are data-driven: when *rules_dir* is given (or the packaged
+    ``data/rules`` directory exists), each rule's parameters/enabled flag are
+    loaded from YAML and passed to the rule function. Without a config, rules run
+    with their hardcoded defaults (unchanged behaviour).
+    """
+
+    def __init__(self, rules_dir: str | Path | None = None) -> None:
         # Handler registry mapping rule_id -> function
         self._handlers: dict[str, object] = {}
         self._handlers.update(GEOMETRIC_HANDLERS)
         self._handlers.update(MANUFACTURING_HANDLERS)
+
+        # Load YAML rule configuration (thresholds + enabled). Default to the
+        # packaged data/rules dir; fall back silently to hardcoded defaults.
+        if rules_dir is None:
+            try:
+                from omim.config import get_settings
+                candidate = get_settings().rules_dir
+                rules_dir = candidate if Path(candidate).is_dir() else None
+            except Exception:  # noqa: BLE001 — config is optional
+                rules_dir = None
+        self._rule_configs: dict[str, RuleConfig] = (
+            load_ruleset(rules_dir) if rules_dir is not None else {}
+        )
 
     # ------------------------------------------------------------------
     # Layer execution
@@ -47,10 +68,15 @@ class RuleEngine:
         """
         results: list[RuleResult] = []
         for rule_id in sorted(handlers.keys()):
+            config = self._rule_configs.get(rule_id)
+            if config is not None and not config.enabled:
+                logger.debug("Rule %s disabled in config; skipping", rule_id)
+                continue
             handler = handlers[rule_id]
+            params = config.params if config is not None else {}
             t0 = time.perf_counter()
             try:
-                rule_results = handler(mgg)
+                rule_results = handler(mgg, **params)
                 elapsed = (time.perf_counter() - t0) * 1000
                 for r in rule_results:
                     r.execution_time_ms = elapsed

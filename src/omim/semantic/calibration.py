@@ -311,3 +311,80 @@ def expected_calibration_error(
             continue
         ece += (b.count / total) * b.gap
     return ece
+
+
+# ---------------------------------------------------------------------------
+# Learned calibration (isotonic regression via Pool-Adjacent-Violators)
+# ---------------------------------------------------------------------------
+
+
+def _pav(points: list[tuple[float, float, float]]) -> list[tuple[float, float]]:
+    """Weighted Pool-Adjacent-Violators on (x, mean_y, weight) points sorted by x.
+
+    Each point must have a UNIQUE x (aggregate ties before calling). Returns
+    (x_threshold, calibrated_value) breakpoints of the fitted monotonic
+    non-decreasing step function. Pure Python — no sklearn dependency.
+    """
+    # Blocks of [sum_wy, weight, x_right]. Merge while the running mean decreases.
+    blocks: list[list[float]] = []
+    for x, mean_y, w in points:
+        blocks.append([mean_y * w, w, x])
+        while len(blocks) >= 2 and (
+            (blocks[-2][0] / blocks[-2][1]) > (blocks[-1][0] / blocks[-1][1])
+        ):
+            sy2, w2, _x2 = blocks.pop()
+            sy1, w1, _x1 = blocks.pop()
+            blocks.append([sy1 + sy2, w1 + w2, x])  # pooled block keeps the right x
+    return [(b[2], b[0] / b[1]) for b in blocks]
+
+
+class IsotonicCalibrator:
+    """A learned, monotonic confidence calibrator.
+
+    Fits isotonic regression mapping raw confidence -> empirical correctness
+    probability on a labelled ``(confidence, is_correct)`` set, then remaps future
+    confidences. Monotonic (preserves ranking), reduces ECE, needs no sklearn.
+
+    Honesty note: fitting on synthetic data only recalibrates against synthetic
+    ground truth. A genuine real-world calibration guarantee still requires a
+    held-out set of expert-labelled real parts — this class does not manufacture
+    that guarantee, it only makes the mapping learnable once such data exists.
+    """
+
+    def __init__(self) -> None:
+        self._breakpoints: list[tuple[float, float]] = []
+        self.fitted = False
+
+    def fit(self, pairs: list[tuple[float, bool]]) -> IsotonicCalibrator:
+        if not pairs:
+            return self
+        # Aggregate by unique confidence value: (mean correctness, count). Without
+        # this, sorting individual 0/1 outcomes fabricates a monotonic ramp and
+        # PAV never pools (the classic isotonic-on-binary-labels pitfall).
+        agg: dict[float, list[float]] = {}
+        for c, y in pairs:
+            cc = min(1.0, max(0.0, float(c)))
+            bucket = agg.setdefault(cc, [0.0, 0.0])
+            bucket[0] += 1.0 if y else 0.0
+            bucket[1] += 1.0
+        points = [
+            (x, total_correct / count, count)
+            for x, (total_correct, count) in sorted(agg.items())
+        ]
+        self._breakpoints = _pav(points)
+        self.fitted = bool(self._breakpoints)
+        return self
+
+    def calibrate(self, confidence: float) -> float:
+        """Map a raw confidence to its calibrated value (identity if unfitted)."""
+        if not self.fitted:
+            return confidence
+        c = min(1.0, max(0.0, float(confidence)))
+        # Step function: take the value of the last breakpoint whose x <= c.
+        val = self._breakpoints[0][1]
+        for x_thr, v in self._breakpoints:
+            if c >= x_thr:
+                val = v
+            else:
+                break
+        return round(val, 6)

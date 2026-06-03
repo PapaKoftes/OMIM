@@ -70,6 +70,18 @@ def main(argv: list[str] | None = None) -> int:
         help="Confidence >= this is auto-accepted; below goes to the review queue",
     )
 
+    # --- tune-ruleset ---
+    tune_p = sub.add_parser(
+        "tune-ruleset",
+        help="Measure a real DXF corpus and emit an identification ruleset tuned to it",
+    )
+    tune_p.add_argument("corpus_dir", type=Path, help="Directory of delivered DXFs")
+    tune_p.add_argument("-o", "--output", type=Path, required=True, help="Tuned ruleset YAML path")
+    tune_p.add_argument(
+        "--min-samples", type=int, default=5,
+        help="Minimum corpus samples before a threshold is tuned (else keep catalog default)",
+    )
+
     # --- verify ---
     verify_p = sub.add_parser("verify", help="Verify a dataset or sample for integrity/schema")
     verify_p.add_argument("path", type=Path, help="Dataset dir or single sample dir")
@@ -128,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_nest(args)
     elif args.command == "build-dataset":
         return _cmd_build_dataset(args)
+    elif args.command == "tune-ruleset":
+        return _cmd_tune_ruleset(args)
     elif args.command == "verify":
         return _cmd_verify(args)
     elif args.command == "benchmark":
@@ -256,6 +270,21 @@ def _cmd_nest(args) -> int:
     # Exit 2 if the layout has physical problems (overlap / out-of-sheet).
     if layout.overlapping_panel_pairs or layout.panels_outside_sheet:
         return 2
+    return 0
+
+
+def _cmd_tune_ruleset(args) -> int:
+    from omim.pipeline import write_tuned_ruleset
+
+    tuned = write_tuned_ruleset(args.corpus_dir, args.output, min_samples=args.min_samples)
+    print(f"Tuned ruleset written to {args.output}")
+    print(f"Corpus files measured: {tuned.corpus_files}")
+    measured = [k for k, v in tuned.sources.items() if v == "corpus_measured"]
+    defaulted = [k for k, v in tuned.sources.items() if v == "catalog_default"]
+    print(f"Tuned from corpus ({len(measured)}): {', '.join(measured) or 'none'}")
+    print(f"Kept catalog default ({len(defaulted)}): {', '.join(defaulted) or 'none'}")
+    for note in tuned.notes:
+        print(f"  note: {note}")
     return 0
 
 

@@ -7,11 +7,15 @@
 
 from omim.pipeline.build import BuildSummary, DatasetBuilder
 from omim.pipeline.detect import CorpusLayout, LayoutDetection, detect_layout
+from omim.pipeline.tune import TunedRuleset, tune_ruleset, write_tuned_ruleset
 
 __all__ = [
     "BuildSummary",
     "CorpusLayout",
     "DatasetBuilder",
     "LayoutDetection",
+    "TunedRuleset",
     "detect_layout",
+    "tune_ruleset",
+    "write_tuned_ruleset",
 ]

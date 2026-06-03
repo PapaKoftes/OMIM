@@ -57,6 +57,19 @@ def main(argv: list[str] | None = None) -> int:
     nest_p.add_argument("file", type=Path, help="Path to DXF file")
     nest_p.add_argument("-o", "--output", type=Path, default=None, help="Output JSON path")
 
+    # --- build-dataset ---
+    bd_p = sub.add_parser(
+        "build-dataset",
+        help="Auto-detect a DXF corpus layout, identify+auto-label every panel, "
+             "and emit a labeled dataset + review queue",
+    )
+    bd_p.add_argument("corpus_dir", type=Path, help="Directory of delivered DXFs")
+    bd_p.add_argument("output_dir", type=Path, help="Where to write the dataset")
+    bd_p.add_argument(
+        "--accept-threshold", type=float, default=0.75,
+        help="Confidence >= this is auto-accepted; below goes to the review queue",
+    )
+
     # --- verify ---
     verify_p = sub.add_parser("verify", help="Verify a dataset or sample for integrity/schema")
     verify_p.add_argument("path", type=Path, help="Dataset dir or single sample dir")
@@ -113,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_generate(args)
     elif args.command == "nest":
         return _cmd_nest(args)
+    elif args.command == "build-dataset":
+        return _cmd_build_dataset(args)
     elif args.command == "verify":
         return _cmd_verify(args)
     elif args.command == "benchmark":
@@ -241,6 +256,27 @@ def _cmd_nest(args) -> int:
     # Exit 2 if the layout has physical problems (overlap / out-of-sheet).
     if layout.overlapping_panel_pairs or layout.panels_outside_sheet:
         return 2
+    return 0
+
+
+def _cmd_build_dataset(args) -> int:
+    from omim.pipeline import DatasetBuilder
+
+    builder = DatasetBuilder(accept_threshold=args.accept_threshold)
+    summary = builder.build(args.corpus_dir, args.output_dir)
+    print(f"Layout detected : {summary.layout}")
+    print(f"DXF files       : {summary.dxf_files}")
+    print(f"Panels          : {summary.panels}")
+    print(f"Projects        : {summary.projects}")
+    print(f"Labels (total)  : {summary.labels_total}")
+    print(f"Need review     : {summary.labels_needing_review}")
+    print(f"Output          : {summary.output_dir}")
+    if summary.failures:
+        print(f"\n{len(summary.failures)} file(s) skipped:", file=sys.stderr)
+        for f in summary.failures[:10]:
+            print(f"  - {f}", file=sys.stderr)
+    print(f"\nReview the low-confidence labels in {summary.output_dir}/review_queue.jsonl,")
+    print("set each row's 'decision' (confirm|correct|reject), then re-import to finalize.")
     return 0
 
 

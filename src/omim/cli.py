@@ -52,6 +52,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Feature density per panel",
     )
 
+    # --- nest ---
+    nest_p = sub.add_parser("nest", help="Analyse a DXF for multi-panel nesting layout")
+    nest_p.add_argument("file", type=Path, help="Path to DXF file")
+    nest_p.add_argument("-o", "--output", type=Path, default=None, help="Output JSON path")
+
     # --- verify ---
     verify_p = sub.add_parser("verify", help="Verify a dataset or sample for integrity/schema")
     verify_p.add_argument("path", type=Path, help="Dataset dir or single sample dir")
@@ -106,6 +111,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_validate(args)
     elif args.command == "generate":
         return _cmd_generate(args)
+    elif args.command == "nest":
+        return _cmd_nest(args)
     elif args.command == "verify":
         return _cmd_verify(args)
     elif args.command == "benchmark":
@@ -199,6 +206,42 @@ def _cmd_validate(args) -> int:
     passed_count = sum(1 for r in all_results if r.passed)
     print(f"\nTotal: {passed_count} passed, {err_count} errors, {warn_count} warnings")
     return 2 if not report.overall_valid else 0
+
+
+def _cmd_nest(args) -> int:
+    from omim.graph.builder import MGGBuilder
+    from omim.nesting import analyze_nesting
+    from omim.parser.dxf_parser import DXFParser
+
+    result = DXFParser().parse(args.file)
+    if not result.success or not result.geometry:
+        for err in result.errors:
+            print(f"ERROR [{err.error_code}]: {err.message}", file=sys.stderr)
+        return 1
+
+    mgg = MGGBuilder().build(result.geometry)
+    layout = analyze_nesting(mgg)
+
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(layout.model_dump(), indent=2, default=str), encoding="utf-8"
+        )
+        print(f"Written to {args.output}")
+    else:
+        print(f"Nested: {layout.is_nested}  |  panels: {layout.panel_count}  "
+              f"|  sheet: {layout.sheet_source}")
+        if layout.utilization is not None:
+            print(f"Sheet utilization: {layout.utilization:.1%}")
+        for p in layout.panels:
+            print(f"  panel {p.panel_id}: {p.width_mm:.0f}x{p.height_mm:.0f} mm, "
+                  f"{p.feature_count} feature(s)")
+        for w in layout.warnings:
+            print(f"  WARNING: {w}", file=sys.stderr)
+    # Exit 2 if the layout has physical problems (overlap / out-of-sheet).
+    if layout.overlapping_panel_pairs or layout.panels_outside_sheet:
+        return 2
+    return 0
 
 
 def _cmd_generate(args) -> int:

@@ -13,6 +13,7 @@ from shapely.geometry import Point, Polygon
 
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.graph.models import EdgeType, GeometryNode, GraphMetadata
+from omim.parser.depth import resolve_panel_thickness
 from omim.parser.models import RawEntity, RawGeometry
 from omim.provenance.models import InferenceMethod
 from omim.provenance.tracker import ProvenanceTracker
@@ -76,6 +77,9 @@ class MGGBuilder:
 
         # Phase 2: Detect panel boundary
         self._detect_panel_boundary(mgg, raw, metadata)
+
+        # Phase 2b: Resolve panel STOCK thickness (distinct from feature depth)
+        self._resolve_panel_thickness(raw, metadata)
 
         # Phase 3: Build CONTAINS edges (Shapely containment)
         self._build_contains_edges(mgg)
@@ -148,6 +152,10 @@ class MGGBuilder:
             centroid=centroid,
             diameter_mm=round(diameter, 4) if diameter is not None else None,
             radius_mm=round(radius, 4) if radius is not None else None,
+            depth_mm=entity.depth_mm,
+            depth_source=entity.depth_source,
+            elevation_z=entity.elevation_z,
+            is_approximated=entity.is_approximated,
             is_outer_boundary=False,
             source_entity_id=entity.entity_id,
             source_file=raw.source_file,
@@ -180,6 +188,22 @@ class MGGBuilder:
                 metadata.panel_bbox = list(bbox)
                 metadata.panel_width_mm = xmax - xmin
                 metadata.panel_height_mm = ymax - ymin
+
+    def _resolve_panel_thickness(
+        self, raw: RawGeometry, metadata: GraphMetadata
+    ) -> None:
+        """Set metadata.panel_thickness_mm from a layer convention or 2.5D Z extent.
+
+        This is the panel's STOCK thickness, deliberately separate from any
+        per-feature ``depth_mm``. Stays None on a flat 2D DXF with no thickness
+        cue (never guessed) so consumers can distinguish "thin panel" from
+        "thickness unknown".
+        """
+        layers = [e.layer for e in raw.entities if e.layer]
+        z_values = [e.elevation_z for e in raw.entities if e.elevation_z is not None]
+        thickness, source = resolve_panel_thickness(layers, z_values)
+        metadata.panel_thickness_mm = thickness
+        metadata.panel_thickness_source = source
 
     def _build_contains_edges(self, mgg: ManufacturingGeometryGraph) -> None:
         """Add CONTAINS edges: panel polygon contains entity centroid with 1mm inward buffer."""

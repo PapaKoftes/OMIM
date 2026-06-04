@@ -7,6 +7,7 @@ import logging
 import time
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 from omim.graph.mgg import ManufacturingGeometryGraph
 from omim.graph.models import ConstraintNode, EdgeType
@@ -14,33 +15,74 @@ from omim.provenance.models import InferenceMethod, ProvenanceRecord
 from omim.validation.geometric_rules import GEOMETRIC_HANDLERS
 from omim.validation.manufacturing_rules import MANUFACTURING_HANDLERS
 from omim.validation.models import RuleResult, ValidationReport
+from omim.validation.ruleset import RuleConfig, load_ruleset
 
 logger = logging.getLogger(__name__)
 
 
 class RuleEngine:
     """Run Layer 1 (GEO-001..GEO-008) and Layer 2 (MFG-001..MFG-012) rules,
-    returning a ValidationReport and optionally annotating the MGG."""
+    returning a ValidationReport and optionally annotating the MGG.
 
-    def __init__(self) -> None:
+    Rule thresholds are data-driven: when *rules_dir* is given (or the packaged
+    ``data/rules`` directory exists), each rule's parameters/enabled flag are
+    loaded from YAML and passed to the rule function. Without a config, rules run
+    with their hardcoded defaults (unchanged behaviour).
+    """
+
+    def __init__(self, rules_dir: str | Path | None = None) -> None:
         # Handler registry mapping rule_id -> function
         self._handlers: dict[str, object] = {}
         self._handlers.update(GEOMETRIC_HANDLERS)
         self._handlers.update(MANUFACTURING_HANDLERS)
 
+        # Load YAML rule configuration (thresholds + enabled). Default to the
+        # packaged data/rules dir; fall back silently to hardcoded defaults.
+        if rules_dir is None:
+            try:
+                from omim.config import get_settings
+                candidate = get_settings().rules_dir
+                rules_dir = candidate if Path(candidate).is_dir() else None
+            except Exception:  # noqa: BLE001 — config is optional
+                rules_dir = None
+        self._rule_configs: dict[str, RuleConfig] = (
+            load_ruleset(rules_dir) if rules_dir is not None else {}
+        )
+
     # ------------------------------------------------------------------
     # Layer execution
     # ------------------------------------------------------------------
 
-    def execute_layer1(self, mgg: ManufacturingGeometryGraph) -> list[RuleResult]:
-        """Run GEO-001 to GEO-008 sorted by rule_id."""
+    def _run_handlers(
+        self,
+        mgg: ManufacturingGeometryGraph,
+        handlers: dict[str, object],
+    ) -> list[RuleResult]:
+        """Run each handler sorted by rule_id, timing the whole rule once.
+
+        The per-rule ``execution_time_ms`` is measured here, at the engine level,
+        and stamped onto every RuleResult the handler returns. This fixes a
+        long-standing bug where each rule recomputed ``elapsed`` inside individual
+        violation branches, so a multi-violation rule reported a different,
+        cumulative time per finding instead of the rule's true wall-clock cost.
+        """
         results: list[RuleResult] = []
-        for rule_id in sorted(GEOMETRIC_HANDLERS.keys()):
-            handler = GEOMETRIC_HANDLERS[rule_id]
+        for rule_id in sorted(handlers.keys()):
+            config = self._rule_configs.get(rule_id)
+            if config is not None and not config.enabled:
+                logger.debug("Rule %s disabled in config; skipping", rule_id)
+                continue
+            handler = handlers[rule_id]
+            params = config.params if config is not None else {}
+            t0 = time.perf_counter()
             try:
-                rule_results = handler(mgg)
+                rule_results = handler(mgg, **params)
+                elapsed = (time.perf_counter() - t0) * 1000
+                for r in rule_results:
+                    r.execution_time_ms = elapsed
                 results.extend(rule_results)
             except Exception as exc:
+                elapsed = (time.perf_counter() - t0) * 1000
                 logger.exception("Rule %s raised an exception", rule_id)
                 results.append(RuleResult(
                     rule_id=rule_id,
@@ -48,27 +90,17 @@ class RuleEngine:
                     passed=False,
                     severity="SYSTEM_ERROR",
                     message=f"Rule {rule_id} raised an exception: {exc}",
+                    execution_time_ms=elapsed,
                 ))
         return results
 
+    def execute_layer1(self, mgg: ManufacturingGeometryGraph) -> list[RuleResult]:
+        """Run GEO-001 to GEO-008 sorted by rule_id."""
+        return self._run_handlers(mgg, GEOMETRIC_HANDLERS)
+
     def execute_layer2(self, mgg: ManufacturingGeometryGraph) -> list[RuleResult]:
         """Run MFG-001 to MFG-012 sorted by rule_id. NO access to semantic layer."""
-        results: list[RuleResult] = []
-        for rule_id in sorted(MANUFACTURING_HANDLERS.keys()):
-            handler = MANUFACTURING_HANDLERS[rule_id]
-            try:
-                rule_results = handler(mgg)
-                results.extend(rule_results)
-            except Exception as exc:
-                logger.exception("Rule %s raised an exception", rule_id)
-                results.append(RuleResult(
-                    rule_id=rule_id,
-                    rule_name=rule_id,
-                    passed=False,
-                    severity="SYSTEM_ERROR",
-                    message=f"Rule {rule_id} raised an exception: {exc}",
-                ))
-        return results
+        return self._run_handlers(mgg, MANUFACTURING_HANDLERS)
 
     # ------------------------------------------------------------------
     # Main entry point

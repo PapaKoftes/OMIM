@@ -63,6 +63,27 @@ class GNNPredictor:
         self._manufacturability_model: Any = None
         self._vgae: Any = None
 
+        # Whether a real checkpoint was loaded for each head. A model with no
+        # checkpoint runs *random weights*, so its output is meaningless and must
+        # not be reported as a genuine prediction (see ``predict``).
+        self._feature_trained = self.feature_checkpoint is not None
+        self._manufacturability_trained = self.manufacturability_checkpoint is not None
+        self._vgae_trained = self.vgae_checkpoint is not None
+
+    @property
+    def trained(self) -> bool:
+        """True only if at least one head was given a checkpoint to load.
+
+        When False, the predictor would run untrained (random-weight) models, so
+        :meth:`predict` reports ``fallback=True`` and the caller should rely on
+        deterministic heuristics instead of these advisory outputs.
+        """
+        return bool(
+            self.feature_checkpoint
+            or self.manufacturability_checkpoint
+            or self.vgae_checkpoint
+        )
+
     # ------------------------------------------------------------------
     # Availability
     # ------------------------------------------------------------------
@@ -155,6 +176,11 @@ class GNNPredictor:
             reason = self._unavailable_reason()
             logger.warning("ML unavailable; using heuristics only (%s)", reason)
             return unavailable_classification(self._graph_id(mgg), reason)
+        if self.feature_checkpoint is None:
+            logger.warning("No feature checkpoint loaded; random weights -> using heuristics")
+            return unavailable_classification(
+                self._graph_id(mgg), "no_checkpoint_loaded: model is untrained (random weights)"
+            )
         try:
             model = self._load_feature_model()
             return model.predict(mgg, validation_report)
@@ -172,6 +198,11 @@ class GNNPredictor:
             reason = self._unavailable_reason()
             logger.warning("ML unavailable; using heuristics only (%s)", reason)
             return unavailable_manufacturability(self._graph_id(mgg), reason)
+        if self.manufacturability_checkpoint is None:
+            logger.warning("No manufacturability checkpoint; random weights -> using heuristics")
+            return unavailable_manufacturability(
+                self._graph_id(mgg), "no_checkpoint_loaded: model is untrained (random weights)"
+            )
         try:
             model = self._load_manufacturability_model()
             return model.predict(mgg, validation_report)
@@ -189,6 +220,11 @@ class GNNPredictor:
             reason = self._unavailable_reason()
             logger.warning("ML unavailable; using heuristics only (%s)", reason)
             return unavailable_anomaly(self._graph_id(mgg), reason)
+        if self.vgae_checkpoint is None:
+            logger.warning("No VGAE checkpoint loaded; random weights -> using heuristics")
+            return unavailable_anomaly(
+                self._graph_id(mgg), "no_checkpoint_loaded: model is untrained (random weights)"
+            )
         try:
             vgae = self._load_vgae()
             return vgae.predict_anomaly(mgg, threshold=self.anomaly_threshold)
@@ -201,11 +237,18 @@ class GNNPredictor:
         mgg: ManufacturingGeometryGraph,
         validation_report: Any = None,
     ) -> dict[str, Any]:
-        """Run all three advisory predictions and return them as a dict overlay."""
+        """Run all three advisory predictions and return them as a dict overlay.
+
+        ``fallback`` is True when ML is unavailable OR when no checkpoints were
+        provided (all heads would otherwise run untrained random weights). In
+        either case the caller should trust deterministic heuristics, not these
+        advisory outputs.
+        """
         return {
             "features": self.predict_features(mgg, validation_report),
             "manufacturability": self.predict_manufacturability(mgg, validation_report),
             "anomaly": self.predict_anomaly(mgg),
             "ml_available": ML_AVAILABLE,
-            "fallback": not ML_AVAILABLE,
+            "trained": self.trained,
+            "fallback": not ML_AVAILABLE or not self.trained,
         }

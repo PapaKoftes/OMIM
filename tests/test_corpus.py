@@ -292,7 +292,9 @@ class TestCatalogGroundTruth:
         ref = CATALOG_REFERENCES["HINGE_CUP_HOLE"]
         assert ref["diameter_mm"] == 35.0
         assert ref["setback_mm"] == 22.5
-        assert "70.1900.AC" in ref["source"]
+        # Boring depth corrected to Blum's published 13mm (was 12.5).
+        assert ref["depth_mm"] == 13.0
+        assert "Blum CLIP top" in ref["source"]
 
     def test_shelf_pin_reference_exact(self):
         ref = CATALOG_REFERENCES["SHELF_PIN_HOLE"]

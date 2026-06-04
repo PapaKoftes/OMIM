@@ -24,7 +24,7 @@ classifiers = [
 
 dependencies = [
     "ezdxf>=1.3.0",
-    "shapely>=2.0",
+    "shapely>=2.1",  # 2.1 adds maximum_inscribed_circle (MFG-004 pocket width)
     "networkx>=3.2",
     "pydantic>=2.5",
     "pydantic-settings>=2.1",
@@ -42,6 +42,9 @@ ml = [
     "torch>=2.2",
     "torch-geometric>=2.5",
     "scikit-learn>=1.4",
+]
+nesting = [
+    "rectpack>=0.2",  # optional: ideal-packing comparison for nest layouts
 ]
 dev = [
     "pytest>=8.0",

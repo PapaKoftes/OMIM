@@ -301,10 +301,24 @@ def check_coordinate_range(mgg: ManufacturingGeometryGraph, **params: Any) -> li
 
 
 def check_contour_orientation(mgg: ManufacturingGeometryGraph, **params: Any) -> list[RuleResult]:
-    """GEO-005: Outer contours should be CCW, inner contours CW (Shapely is_ccw)."""
+    """GEO-005: Outer boundary should wind CCW; interior contours should wind
+    *opposite to the contour that immediately contains them* (standard even/odd
+    winding convention).
+
+    This rule is **nesting-relative**, not absolute. A counter-clockwise interior
+    cutout is perfectly legitimate when its enclosing boundary winds clockwise, so
+    flagging every CCW interior contour (the previous behaviour) produced constant
+    false positives on valid CAD parts. Interior orientation is also a CAM
+    *preference* that the parser may normalize on import, so a winding that merely
+    matches its container is reported at INFO severity (advisory), never as a
+    WARNING/ERROR that affects ``overall_valid``. Only a clockwise *outer boundary*
+    — a genuine, unambiguous convention violation — is raised as a WARNING.
+    """
     t0 = time.perf_counter()
     results: list[RuleResult] = []
 
+    # Collect all closed contours as (nid, ring, polygon, is_outer).
+    contours: list[tuple[str, Any, Polygon, bool]] = []
     for nid, data in mgg.geometry_nodes():
         if data.get("geometry_type") not in ("lwpolyline", "polyline"):
             continue
@@ -313,49 +327,82 @@ def check_contour_orientation(mgg: ManufacturingGeometryGraph, **params: Any) ->
         coords = data.get("coordinates", [])
         if len(coords) < 3:
             continue
-
         try:
             ring = LinearRing(coords)
+            poly = Polygon(coords)
         except Exception:
             continue
+        if not poly.is_valid or poly.area <= 0:
+            continue
+        contours.append((nid, ring, poly, bool(data.get("is_outer_boundary", False))))
 
-        is_outer = data.get("is_outer_boundary", False)
+    def _immediate_container(idx: int) -> int | None:
+        """Index of the smallest-area OTHER contour that contains contour *idx*."""
+        _nid, _ring, poly_i, _is_outer = contours[idx]
+        rep = poly_i.representative_point()
+        best_j, best_area = None, None
+        for j, (_nidj, _ringj, poly_j, _outerj) in enumerate(contours):
+            if j == idx:
+                continue
+            if poly_j.area <= poly_i.area:
+                continue
+            if poly_j.contains(rep):
+                if best_area is None or poly_j.area < best_area:
+                    best_area, best_j = poly_j.area, j
+        return best_j
 
-        if is_outer and not ring.is_ccw:
-            elapsed = (time.perf_counter() - t0) * 1000
+    for idx, (nid, ring, _poly, is_outer) in enumerate(contours):
+        if is_outer:
+            if not ring.is_ccw:
+                results.append(_make_result(
+                    rule_id="GEO-005",
+                    rule_name="Contour Orientation",
+                    passed=False,
+                    severity="WARNING",
+                    message=f"Outer boundary {nid} winds CW (expected CCW)",
+                    affected_node_ids=[nid],
+                    evidence={"expected": "CCW", "actual": "CW", "is_outer": True},
+                ))
+            continue
+
+        # Interior contour: compare winding to its immediate container (if any).
+        parent = _immediate_container(idx)
+        if parent is None:
+            # No enclosing contour found -> cannot establish a relative convention.
+            continue
+        parent_ccw = contours[parent][1].is_ccw
+        if ring.is_ccw == parent_ccw:
+            # Same winding as its container. Advisory only (parser may normalize).
             results.append(_make_result(
                 rule_id="GEO-005",
                 rule_name="Contour Orientation",
                 passed=False,
-                severity="WARNING",
-                message=f"Outer contour {nid} is CW (expected CCW)",
+                severity="INFO",
+                message=(
+                    f"Interior contour {nid} winds the same direction as its "
+                    f"container {contours[parent][0]} (CAM convention prefers "
+                    f"opposite winding; parser may normalize)"
+                ),
                 affected_node_ids=[nid],
-                evidence={"expected": "CCW", "actual": "CW", "is_outer": True},
-                execution_time_ms=elapsed,
-            ))
-        elif not is_outer and ring.is_ccw:
-            elapsed = (time.perf_counter() - t0) * 1000
-            results.append(_make_result(
-                rule_id="GEO-005",
-                rule_name="Contour Orientation",
-                passed=False,
-                severity="WARNING",
-                message=f"Inner contour {nid} is CCW (expected CW)",
-                affected_node_ids=[nid],
-                evidence={"expected": "CW", "actual": "CCW", "is_outer": False},
-                execution_time_ms=elapsed,
+                evidence={
+                    "winding": "CCW" if ring.is_ccw else "CW",
+                    "container_winding": "CCW" if parent_ccw else "CW",
+                    "container_node_id": contours[parent][0],
+                    "is_outer": False,
+                },
             ))
 
     if not results:
-        elapsed = (time.perf_counter() - t0) * 1000
         results.append(_make_result(
             rule_id="GEO-005",
             rule_name="Contour Orientation",
             passed=True,
             severity="PASS",
             message="All contour orientations are correct",
-            execution_time_ms=elapsed,
         ))
+    elapsed = (time.perf_counter() - t0) * 1000
+    for r in results:
+        r.execution_time_ms = elapsed
     return results
 
 

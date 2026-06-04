@@ -9,9 +9,9 @@ ruleset:
 
 thresholds:
   min_edge_distance_mm: 8.0
-  min_hole_spacing_mm: 5.0
+  min_hole_spacing_mm: 5.0      # min center-to-center (distinct from MFG-002 wall=3mm)
   min_drill_diameter_mm: 3.0
-  max_drill_diameter_mm: 35.0
+  max_drill_diameter_mm: 40.0   # aligned with MFG-011 (was 35; 40 allows Forstner bores)
   min_panel_width_mm: 50.0
   min_panel_height_mm: 50.0
   max_panel_width_mm: 2800.0

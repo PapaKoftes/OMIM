@@ -56,6 +56,13 @@ class RawEntity(BaseModel):
     diameter_mm: float | None = None
     radius_mm: float | None = None
 
+    # Depth / 2.5D (see omim.parser.depth). depth_mm is None for pure-2D features
+    # with no recoverable depth; depth_source records how it was obtained
+    # ("z_elevation" = measured from 2.5D geometry, "layer_name" = inferred).
+    depth_mm: float | None = None
+    depth_source: str | None = None
+    elevation_z: float | None = None  # raw entity Z (WCS), when present
+
     is_approximated: bool = False    # True if SPLINE was approximated
 
 

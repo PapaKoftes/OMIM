@@ -274,6 +274,12 @@ class GNNTrainer:
         with ctx:
             for data in batches:
                 data = data.to(self.device)
+                # BatchNorm in train mode requires >1 row. A batch can still be a
+                # lone single-node graph (rare last-batch remainder), which would
+                # crash. Skip such degenerate training batches (they carry no
+                # usable batch statistics); evaluate them normally in eval mode.
+                if train and getattr(data, "num_nodes", data.x.shape[0]) < 2:
+                    continue
                 if train:
                     self.optimizer.zero_grad()
                 logits = self.model(data.x, data.edge_index)
@@ -290,6 +296,26 @@ class GNNTrainer:
         macro_f1 = self._macro_f1(y_true, y_pred) if y_true.size else 0.0
         return total_loss / n, macro_f1
 
+    def _as_loader(self, data: Any, *, shuffle: bool, batch_size: int = 8) -> Any:
+        """Wrap a list/dataset of PyG ``Data`` in a DataLoader (idempotent).
+
+        If ``data`` is already a ``torch_geometric.loader.DataLoader`` it is
+        returned unchanged. Otherwise its items are collected (supporting both
+        plain lists and ``CanonicalSampleDataset`` via ``.all()``) and wrapped.
+        Returns an empty list when there is nothing to load.
+        """
+        from torch_geometric.loader import DataLoader as PyGDataLoader
+
+        if isinstance(data, PyGDataLoader):
+            return data
+        if hasattr(data, "all") and callable(data.all):
+            items = list(data.all())
+        else:
+            items = list(data)
+        if not items:
+            return []
+        return PyGDataLoader(items, batch_size=batch_size, shuffle=shuffle)
+
     def train(
         self,
         train_loader: Any,
@@ -300,9 +326,16 @@ class GNNTrainer:
 
         ``train_loader`` / ``val_loader`` may be any iterable of PyG ``Data``
         objects (a list, a ``CanonicalSampleDataset.all()``, or a DataLoader).
+
+        Plain lists/datasets are wrapped in a ``torch_geometric.loader.DataLoader``
+        so graphs are mini-batched into one block-diagonal graph per step. This is
+        required for correctness, not just speed: ``BatchNorm`` in training mode
+        raises ``ValueError`` on a size-1 input, so feeding single-node panels one
+        graph at a time crashes. Batching guarantees the norm layers always see
+        ``sum(N_i) > 1`` rows. An object that is already a DataLoader is used as-is.
         """
-        train_batches = list(train_loader)
-        val_batches = list(val_loader) if val_loader is not None else []
+        train_batches = self._as_loader(train_loader, shuffle=True)
+        val_batches = self._as_loader(val_loader, shuffle=False) if val_loader is not None else []
 
         history: list[dict] = []
         best_f1 = -1.0

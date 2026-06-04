@@ -182,6 +182,32 @@ async def validate_dxf(file: UploadFile = File(...)) -> dict[str, Any]:
         tmp_path.unlink(missing_ok=True)
 
 
+@router.post("/nest")
+async def nest_dxf(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Analyse a DXF for a multi-panel nesting layout.
+
+    Detects whether the file is a nest (a stock sheet carrying several panels),
+    which panels exist, how features distribute across them, and layout sanity
+    (utilization, overlapping panels, panels outside the sheet).
+    """
+    from omim.nesting import analyze_nesting
+
+    _require_dxf(file)
+    tmp_path = await _save_upload(file)
+    try:
+        parse_result = _parser.parse(tmp_path)
+        if not parse_result.success or not parse_result.geometry:
+            return {
+                "success": False,
+                "errors": [e.model_dump() for e in parse_result.errors],
+            }
+        mgg = _builder.build(parse_result.geometry)
+        layout = analyze_nesting(mgg)
+        return {"success": True, "nesting": layout.model_dump()}
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
 # ---------------------------------------------------------------------------
 # LLM advisory annotation (Authority Level 6)
 # ---------------------------------------------------------------------------

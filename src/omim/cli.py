@@ -10,9 +10,14 @@ from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
+    from omim import __version__
+
     parser = argparse.ArgumentParser(
         prog="omim",
         description="Open Manufacturing Intelligence Middleware",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"omim {__version__}"
     )
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable debug logging"
@@ -45,6 +50,36 @@ def main(argv: list[str] | None = None) -> int:
     gen_p.add_argument(
         "--density", choices=["sparse", "medium", "dense"], default="medium",
         help="Feature density per panel",
+    )
+
+    # --- nest ---
+    nest_p = sub.add_parser("nest", help="Analyse a DXF for multi-panel nesting layout")
+    nest_p.add_argument("file", type=Path, help="Path to DXF file")
+    nest_p.add_argument("-o", "--output", type=Path, default=None, help="Output JSON path")
+
+    # --- build-dataset ---
+    bd_p = sub.add_parser(
+        "build-dataset",
+        help="Auto-detect a DXF corpus layout, identify+auto-label every panel, "
+             "and emit a labeled dataset + review queue",
+    )
+    bd_p.add_argument("corpus_dir", type=Path, help="Directory of delivered DXFs")
+    bd_p.add_argument("output_dir", type=Path, help="Where to write the dataset")
+    bd_p.add_argument(
+        "--accept-threshold", type=float, default=0.75,
+        help="Confidence >= this is auto-accepted; below goes to the review queue",
+    )
+
+    # --- tune-ruleset ---
+    tune_p = sub.add_parser(
+        "tune-ruleset",
+        help="Measure a real DXF corpus and emit an identification ruleset tuned to it",
+    )
+    tune_p.add_argument("corpus_dir", type=Path, help="Directory of delivered DXFs")
+    tune_p.add_argument("-o", "--output", type=Path, required=True, help="Tuned ruleset YAML path")
+    tune_p.add_argument(
+        "--min-samples", type=int, default=5,
+        help="Minimum corpus samples before a threshold is tuned (else keep catalog default)",
     )
 
     # --- verify ---
@@ -101,6 +136,12 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_validate(args)
     elif args.command == "generate":
         return _cmd_generate(args)
+    elif args.command == "nest":
+        return _cmd_nest(args)
+    elif args.command == "build-dataset":
+        return _cmd_build_dataset(args)
+    elif args.command == "tune-ruleset":
+        return _cmd_tune_ruleset(args)
     elif args.command == "verify":
         return _cmd_verify(args)
     elif args.command == "benchmark":
@@ -194,6 +235,78 @@ def _cmd_validate(args) -> int:
     passed_count = sum(1 for r in all_results if r.passed)
     print(f"\nTotal: {passed_count} passed, {err_count} errors, {warn_count} warnings")
     return 2 if not report.overall_valid else 0
+
+
+def _cmd_nest(args) -> int:
+    from omim.graph.builder import MGGBuilder
+    from omim.nesting import analyze_nesting
+    from omim.parser.dxf_parser import DXFParser
+
+    result = DXFParser().parse(args.file)
+    if not result.success or not result.geometry:
+        for err in result.errors:
+            print(f"ERROR [{err.error_code}]: {err.message}", file=sys.stderr)
+        return 1
+
+    mgg = MGGBuilder().build(result.geometry)
+    layout = analyze_nesting(mgg)
+
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(layout.model_dump(), indent=2, default=str), encoding="utf-8"
+        )
+        print(f"Written to {args.output}")
+    else:
+        print(f"Nested: {layout.is_nested}  |  panels: {layout.panel_count}  "
+              f"|  sheet: {layout.sheet_source}")
+        if layout.utilization is not None:
+            print(f"Sheet utilization: {layout.utilization:.1%}")
+        for p in layout.panels:
+            print(f"  panel {p.panel_id}: {p.width_mm:.0f}x{p.height_mm:.0f} mm, "
+                  f"{p.feature_count} feature(s)")
+        for w in layout.warnings:
+            print(f"  WARNING: {w}", file=sys.stderr)
+    # Exit 2 if the layout has physical problems (overlap / out-of-sheet).
+    if layout.overlapping_panel_pairs or layout.panels_outside_sheet:
+        return 2
+    return 0
+
+
+def _cmd_tune_ruleset(args) -> int:
+    from omim.pipeline import write_tuned_ruleset
+
+    tuned = write_tuned_ruleset(args.corpus_dir, args.output, min_samples=args.min_samples)
+    print(f"Tuned ruleset written to {args.output}")
+    print(f"Corpus files measured: {tuned.corpus_files}")
+    measured = [k for k, v in tuned.sources.items() if v == "corpus_measured"]
+    defaulted = [k for k, v in tuned.sources.items() if v == "catalog_default"]
+    print(f"Tuned from corpus ({len(measured)}): {', '.join(measured) or 'none'}")
+    print(f"Kept catalog default ({len(defaulted)}): {', '.join(defaulted) or 'none'}")
+    for note in tuned.notes:
+        print(f"  note: {note}")
+    return 0
+
+
+def _cmd_build_dataset(args) -> int:
+    from omim.pipeline import DatasetBuilder
+
+    builder = DatasetBuilder(accept_threshold=args.accept_threshold)
+    summary = builder.build(args.corpus_dir, args.output_dir)
+    print(f"Layout detected : {summary.layout}")
+    print(f"DXF files       : {summary.dxf_files}")
+    print(f"Panels          : {summary.panels}")
+    print(f"Projects        : {summary.projects}")
+    print(f"Labels (total)  : {summary.labels_total}")
+    print(f"Need review     : {summary.labels_needing_review}")
+    print(f"Output          : {summary.output_dir}")
+    if summary.failures:
+        print(f"\n{len(summary.failures)} file(s) skipped:", file=sys.stderr)
+        for f in summary.failures[:10]:
+            print(f"  - {f}", file=sys.stderr)
+    print(f"\nReview the low-confidence labels in {summary.output_dir}/review_queue.jsonl,")
+    print("set each row's 'decision' (confirm|correct|reject), then re-import to finalize.")
+    return 0
 
 
 def _cmd_generate(args) -> int:

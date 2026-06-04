@@ -77,6 +77,18 @@ class GeometryNode(BaseModel):
     diameter_mm: float | None = None
     radius_mm: float | None = None
 
+    # Depth / 2.5D. depth_mm is None for pure-2D features with no recoverable
+    # depth. depth_source records provenance: "z_elevation" (measured from 2.5D
+    # geometry), "layer_name" (inferred from a layer convention), or None.
+    depth_mm: float | None = None
+    depth_source: str | None = None
+    elevation_z: float | None = None
+
+    # True when a curved entity (SPLINE/ELLIPSE/bulged polyline) was flattened to
+    # a many-vertex polyline at parse time. Consumers that analyse vertices (e.g.
+    # corner-angle checks) skip these to avoid chord-induced false positives.
+    is_approximated: bool = False
+
     # Panel boundary
     is_outer_boundary: bool | None = None
     contains_node_ids: list[str] = Field(default_factory=list)
@@ -205,6 +217,12 @@ class GraphMetadata(BaseModel):
     panel_bbox: list[float] | None = None  # [xmin, ymin, xmax, ymax]
     panel_width_mm: float | None = None
     panel_height_mm: float | None = None
+    # Panel STOCK thickness (mm) — distinct from any feature depth. Recovered from
+    # a layer-name convention (PANEL_18MM/THK18) or a 2.5D Z-extent; None when the
+    # 2D DXF carries no thickness cue (never guessed). panel_thickness_source is
+    # "layer_name" | "z_extent" | None.
+    panel_thickness_mm: float | None = None
+    panel_thickness_source: str | None = None
 
     geometry_node_count: int = 0
     feature_node_count: int = 0

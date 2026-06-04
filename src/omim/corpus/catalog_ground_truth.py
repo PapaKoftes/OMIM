@@ -8,13 +8,14 @@ corpus is validated (see ``validator.validate_against_catalog``) and from which
 the catalog-derived synthetic grounding profile is seeded
 (see ``reference_profile``).
 
-Sources (see docs/06_REAL_WORLD_GROUNDING):
-  - Blum CLIP top hinge, item 70.1900.AC  -> HINGE_CUP_HOLE
+Sources (see docs/06_REAL_WORLD_GROUNDING; verified against live manufacturer
+catalogs + standards, 2026):
+  - Blum CLIP top hinge, item 70.1900.AC  -> HINGE_CUP_HOLE (35mm cup, 13mm bore)
   - Häfele System 32 / Rasterbohr          -> SHELF_PIN_HOLE
   - Häfele Confirmat / DIN 68871           -> CONFIRMAT_HOLE
-  - DIN 7 / DIN 68863 cylindrical pins     -> DOWEL_HOLE
-  - Häfele Rafix cam fitting               -> CAM_HOLE
-  - EN 309 (particleboard) / EN 622-5 (MDF) -> panel thicknesses
+  - DIN 68150 fluted furniture dowels      -> DOWEL_HOLE (6 / 8 / 10mm)
+  - Häfele Minifix 15 cam fitting          -> CAM_HOLE (ø15.0mm x 12.5mm deep)
+  - EN 312:2010 (particleboard) / EN 622-5 (MDF) -> panel thicknesses
   - Panel_Dimension_Standards.md           -> sheet / panel sizes, feature counts
 """
 
@@ -62,22 +63,35 @@ CATALOG_REFERENCES: dict[str, dict[str, Any]] = {
         "cluster_center_mm": 7.0,
         "source": "Häfele Confirmat; DIN 68871 (7mm body / 5mm pilot)",
     },
-    "DOWEL_HOLE": {
-        "description": "DIN 7 cylindrical dowel pin hole (furniture standard)",
-        "diameter_mm": 8.0,          # 8mm most common; 10mm heavy-duty
+    "DOWEL_HOLE_LIGHT": {
+        "description": "6mm fluted furniture dowel hole (common light-duty)",
+        "diameter_mm": 6.0,          # 6mm is one of the two most-stocked sizes
         "diameter_tol_mm": 0.1,
-        "alt_diameters_mm": [8.0, 10.0],
-        "depth_mm": 17.0,            # ~thickness/2 per side; DIN 68863 ~34mm total
+        "depth_mm": 14.0,            # 6x30 dowel; ~half per side
+        "depth_tol_mm": 2.0,
+        "setback_mm": None,          # at joint position, not edge-referenced
+        "setback_tol_mm": None,
+        "spacing_mm": 32.0,          # typically on the 32mm system in flat-pack
+        "spacing_tol_mm": 1.0,
+        "cluster_center_mm": 6.0,
+        "source": "DIN 68150 fluted furniture dowel (6mm x 30 most-stocked)",
+    },
+    "DOWEL_HOLE": {
+        "description": "8mm fluted furniture dowel hole (standard construction)",
+        "diameter_mm": 8.0,          # 8mm most common; 6mm light, 10mm heavy-duty
+        "diameter_tol_mm": 0.1,
+        "alt_diameters_mm": [6.0, 8.0, 10.0],
+        "depth_mm": 17.0,            # ~thickness/2 per side; ~34mm total joint
         "depth_tol_mm": 2.0,
         "setback_mm": None,          # at joint position, not edge-referenced
         "setback_tol_mm": None,
         "spacing_mm": 32.0,          # typically on the 32mm system in flat-pack
         "spacing_tol_mm": 1.0,
         "cluster_center_mm": 8.0,
-        "source": "DIN 7 Part 1; DIN 68863 (8mm/10mm dowel)",
+        "source": "DIN 68150 fluted furniture dowel (8mm x 40 most-stocked)",
     },
     "DOWEL_HOLE_HEAVY": {
-        "description": "DIN 7 heavy-duty dowel pin hole (10mm)",
+        "description": "10mm fluted furniture dowel hole (heavy-duty)",
         "diameter_mm": 10.0,
         "diameter_tol_mm": 0.1,
         "depth_mm": 17.0,
@@ -87,10 +101,10 @@ CATALOG_REFERENCES: dict[str, dict[str, Any]] = {
         "spacing_mm": 32.0,
         "spacing_tol_mm": 1.0,
         "cluster_center_mm": 10.0,
-        "source": "DIN 7 Part 1; DIN 68863 (10mm heavy-duty dowel)",
+        "source": "DIN 68150 fluted furniture dowel (10mm heavy-duty)",
     },
     "CAM_HOLE": {
-        "description": "Rafix cam fitting bore",
+        "description": "Minifix 15 cam-housing bore",
         "diameter_mm": 15.0,
         "diameter_tol_mm": 0.3,
         "depth_mm": 12.5,
@@ -99,32 +113,36 @@ CATALOG_REFERENCES: dict[str, dict[str, Any]] = {
         "setback_tol_mm": None,
         "spacing_mm": None,
         "cluster_center_mm": 15.0,
-        "source": "Häfele Rafix cam fitting (ø15.0mm x 12.5mm deep)",
+        # NOTE: this is the Häfele Minifix 15 cam housing (ø15.0mm x 12.5mm deep).
+        # Previously mislabelled "Rafix" (a different, flat-housing fitting).
+        "source": "Häfele Minifix 15 cam housing (ø15.0mm x 12.5mm deep)",
     },
     "HINGE_CUP_HOLE": {
         "description": "European concealed hinge cup bore",
         "diameter_mm": 35.0,
         "diameter_tol_mm": 0.5,
-        "depth_mm": 12.5,
-        "depth_tol_mm": 0.5,
-        "setback_mm": 22.5,          # cup-center to panel edge
-        "setback_tol_mm": 1.0,
+        "depth_mm": 13.0,            # Blum CLIP top published boring depth = 13mm
+        "depth_tol_mm": 1.0,         # covers 11.5-13mm competitor/legacy cups
+        "setback_mm": 22.5,          # cup-center to edge (= boring distance C 3-6mm
+                                     # + 17.5mm cup radius); real range ~20.5-23.5
+        "setback_tol_mm": 1.5,       # widened to span the real C=3-6mm range
         "spacing_mm": None,          # pair spacing varies by door width
         "cluster_center_mm": 35.0,
-        "source": "Blum CLIP top item 70.1900.AC; Hettich Intermat; "
-                  "Grass Tiomos (industry-standard 35mm cup)",
+        "source": "Blum CLIP top BLUMOTION (35mm cup, 13mm boring depth); "
+                  "Hettich Intermat; Grass Tiomos",
     },
 }
 
 # Canonical diameters that a measured hole diameter is clustered to (mm).
-# These are the published catalog nominal bore sizes for the European 32mm
-# cabinet system. 15mm is the Rafix cam bore.
-KNOWN_FEATURE_DIAMETERS_MM: list[float] = [5.0, 7.0, 8.0, 10.0, 15.0, 35.0]
+# Published catalog nominal bore sizes for the European 32mm cabinet system.
+# 6mm is the light-duty fluted dowel; 15mm is the Minifix 15 cam bore.
+KNOWN_FEATURE_DIAMETERS_MM: list[float] = [5.0, 6.0, 7.0, 8.0, 10.0, 15.0, 35.0]
 
 # Diameter -> dominant feature class (for cluster labelling). Where a diameter
 # is shared (e.g. nothing here), the most common cabinet feature wins.
 DIAMETER_TO_FEATURE: dict[float, str] = {
     5.0: "SHELF_PIN_HOLE",
+    6.0: "DOWEL_HOLE_LIGHT",
     7.0: "CONFIRMAT_HOLE",
     8.0: "DOWEL_HOLE",
     10.0: "DOWEL_HOLE_HEAVY",
@@ -137,7 +155,7 @@ DIAMETER_TO_FEATURE: dict[float, str] = {
 # Panel / sheet dimension ground truth (EN 309 / EN 622-5 + standards docs)
 # ---------------------------------------------------------------------------
 
-# EN 309 (particleboard) + EN 622-5 (MDF) union of standard thicknesses (mm).
+# EN 312:2010 (particleboard) + EN 622-5 (MDF) union of standard thicknesses (mm).
 VALID_PANEL_THICKNESSES_MM: list[float] = [
     3.0, 4.0, 6.0, 8.0, 9.0, 10.0, 12.0, 15.0, 16.0,
     18.0, 19.0, 22.0, 25.0, 28.0, 30.0, 38.0,
@@ -193,6 +211,12 @@ MAX_REALISTIC_HOLE_COUNT: int = 40
 # generic 19mm through-hole) are reported separately as "unclustered" rather
 # than being force-snapped into the nearest catalog cluster — which would
 # otherwise contaminate that cluster's mean during conformance checking.
+#
+# Kept at 1.0mm (> the per-feature diameter tolerance of ~0.5) so the validator
+# still has a "clustered but off-spec" band: a 34mm hole snaps to the 35mm hinge
+# cluster yet fails its ±0.5 check. Adjacent clusters (5/6/7/8mm, 1mm apart)
+# resolve to the nearest center; an exact 6mm dowel snaps to 6.0 (the fix is
+# that 6.0 is now a cluster at all — previously a 6mm hole mis-snapped to 5mm).
 CLUSTER_TOLERANCE_MM: float = 1.0
 
 

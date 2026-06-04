@@ -495,10 +495,13 @@ class FeatureClassifier:
             )
 
         # ---------------------------------------------------------------
-        # Priority 5: diameter in {8, 10} mm +/- 0.2mm
+        # Priority 5: diameter in {6, 8, 10} mm +/- 0.2mm (furniture dowels).
+        # 6mm is the common light-duty fluted dowel (DIN 68150); 8mm standard;
+        # 10mm heavy-duty. Without 6mm here a real 6mm dowel would fall through
+        # to the generic THROUGH_HOLE / UNKNOWN branch.
         # ---------------------------------------------------------------
         if diameter is not None:
-            for target in (8.0, 10.0):
+            for target in (6.0, 8.0, 10.0):
                 if _is_close(diameter, target, 0.2):
                     ceiling = SEMANTIC_CONFIDENCE_CEILINGS["material_heuristic"]
                     confidence = compute_hole_classification_confidence(

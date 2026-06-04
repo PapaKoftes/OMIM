@@ -70,6 +70,15 @@ def main(argv: list[str] | None = None) -> int:
         help="Confidence >= this is auto-accepted; below goes to the review queue",
     )
 
+    # --- domains ---
+    dom_p = sub.add_parser(
+        "domains",
+        help="List every fabrication domain OMIM can apply to (status + datasets)",
+    )
+    dom_p.add_argument("--status", default=None,
+                       help="Filter by status (production|experimental|stub|planned)")
+    dom_p.add_argument("--key", default=None, help="Show full detail for one domain key")
+
     # --- tune-ruleset ---
     tune_p = sub.add_parser(
         "tune-ruleset",
@@ -140,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_nest(args)
     elif args.command == "build-dataset":
         return _cmd_build_dataset(args)
+    elif args.command == "domains":
+        return _cmd_domains(args)
     elif args.command == "tune-ruleset":
         return _cmd_tune_ruleset(args)
     elif args.command == "verify":
@@ -270,6 +281,57 @@ def _cmd_nest(args) -> int:
     # Exit 2 if the layout has physical problems (overlap / out-of-sheet).
     if layout.overlapping_panel_pairs or layout.panels_outside_sheet:
         return 2
+    return 0
+
+
+def _cmd_domains(args) -> int:
+    from omim.domains import DomainStatus, build_registry
+
+    reg = build_registry()
+
+    if args.key:
+        d = reg.get(args.key)
+        if d is None:
+            print(f"Unknown domain key: {args.key}", file=sys.stderr)
+            print(f"Known: {', '.join(reg.keys())}", file=sys.stderr)
+            return 1
+        print(f"{d.key}  [{d.status.value}]\n  {d.title}\n  {d.summary}")
+        print(f"\n  Fit: {d.fit}")
+        if d.feature_vocabulary:
+            print(f"  Features: {', '.join(d.feature_vocabulary)}")
+        if d.part_types:
+            print(f"  Parts: {', '.join(d.part_types)}")
+        if d.join_types:
+            print(f"  Joins: {', '.join(d.join_types)}")
+        if d.datasets:
+            print("  Datasets:")
+            for ds in d.datasets:
+                print(f"    - {ds.name} [{ds.license.value}] {ds.url}".rstrip())
+        if d.tools:
+            print("  Reuse (open source):")
+            for t in d.tools:
+                print(f"    - {t.name} [{t.license.value}] — {t.reuse_for}")
+        if d.blockers:
+            print("  Blockers:")
+            for b in d.blockers:
+                print(f"    - {b}")
+        return 0
+
+    want = None
+    if args.status:
+        try:
+            want = DomainStatus(args.status.lower())
+        except ValueError:
+            print(f"Unknown status: {args.status}", file=sys.stderr)
+            return 1
+    domains = reg.by_status(want) if want else reg.all()
+    print(f"{len(domains)} domain(s)"
+          + (f" with status={want.value}" if want else f" (of {len(reg)} total)") + ":\n")
+    for d in domains:
+        data = "real-data" if d.has_real_data else "no-data"
+        print(f"  {d.status.value:12s} {data:9s} {d.key:22s} {d.title}")
+    if not want:
+        print("\nUse  omim domains --key <key>  for full detail.")
     return 0
 
 

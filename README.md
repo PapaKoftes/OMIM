@@ -217,6 +217,24 @@ The P&ID domain ingests real, human-annotated graphs (PID2Graph, CC BY-SA — se
 and OMIM predicts independently from ISA-5.1 tags, `omim.domains.pid.benchmark`
 gives a **non-circular** capability score — unlike the synthetic panel grounding.
 
+## Domains beyond furniture
+
+The core (parse → graph → features → validate → nest → label → dataset) is
+domain-agnostic. Every fabrication domain OMIM can apply to — with an honest
+status, vocabulary, researched datasets, and open-source tools to reuse — is
+recorded in a queryable registry:
+
+```bash
+omim domains                            # all 13 domains + status + has-real-data
+omim domains --key digital_fabrication  # full detail for one
+```
+
+Two are **production** (panel furniture, P&ID); the rest are **stub** (vocabulary
++ datasets scoped, no inference yet) or **planned**. The recommended next domain
+is **tab-and-slot digital fabrication** — the joints live in the 2D geometry and
+open CC data (WikiHouse/OpenDesk) exists to validate the assembly inference. See
+`docs/10_IMPLEMENTATION/Domain_Expansion_Roadmap.md`.
+
 ## Tech Stack
 
 | Layer | Technology |

@@ -5,7 +5,11 @@
               dataset (per-panel samples, project trees, review queue, manifest)
 """
 
-from omim.pipeline.build import BuildSummary, DatasetBuilder
+from omim.pipeline.build import (
+    BuildSummary,
+    DatasetBuilder,
+    apply_review_to_dataset,
+)
 from omim.pipeline.detect import CorpusLayout, LayoutDetection, detect_layout
 from omim.pipeline.tune import TunedRuleset, tune_ruleset, write_tuned_ruleset
 
@@ -15,6 +19,7 @@ __all__ = [
     "DatasetBuilder",
     "LayoutDetection",
     "TunedRuleset",
+    "apply_review_to_dataset",
     "detect_layout",
     "tune_ruleset",
     "write_tuned_ruleset",

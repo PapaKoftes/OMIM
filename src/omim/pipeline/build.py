@@ -23,7 +23,13 @@ from pathlib import Path
 from omim.graph.builder import MGGBuilder
 from omim.identify.parts import identify_part
 from omim.identify.project import build_project_structure
-from omim.labeling import AutoLabeler, LabelSet, ReviewQueue
+from omim.labeling import (
+    AutoLabeler,
+    LabelSet,
+    ReviewQueue,
+    export_review_sheet,
+    write_glossary,
+)
 from omim.labeling.autolabeler import labelset_from_project
 from omim.nesting import analyze_nesting, split_raw_geometry_by_panels
 from omim.parser.dxf_parser import DXFParser
@@ -178,9 +184,13 @@ class DatasetBuilder:
                 labelset_from_project(structure, accept_threshold=self._accept_threshold)
             )
 
-        # --- review queue ---
+        # --- review queue (engineer JSONL + carpenter-friendly CSV) ---
         review_path = output_dir / "review_queue.jsonl"
         n_review = ReviewQueue(review_path).export(label_sets)
+        # A non-technical reviewer (a carpenter) edits the CSV in Excel/Sheets;
+        # the glossary explains every term. Both round-trip via the same logic.
+        export_review_sheet(label_sets, output_dir / "review_sheet.csv")
+        write_glossary(output_dir / "review_glossary.csv")
 
         labels_total = sum(len(ls.labels) for ls in label_sets)
         summary = BuildSummary(
@@ -202,6 +212,43 @@ class DatasetBuilder:
 def _safe(name: str) -> str:
     """Filesystem-safe id."""
     return "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
+
+
+def apply_review_to_dataset(dataset_dir: str | Path, sheet_path: str | Path) -> dict:
+    """Fold a filled-in carpenter review sheet back into a built dataset.
+
+    Reads every ``samples/*/labels.json``, applies the reviewer's decisions
+    (confirm/correct/reject) from the CSV via the same logic as the JSONL queue,
+    rewrites the label files in place, and returns a summary. This closes the
+    loop: auto-label -> human reviews a spreadsheet -> corrections become gold.
+    """
+    from omim.labeling import LabelSet, ReviewQueue, import_review_sheet
+
+    dataset_dir = Path(dataset_dir)
+    decisions = import_review_sheet(sheet_path)
+
+    label_files = sorted((dataset_dir / "samples").glob("*/labels.json"))
+    sets: list[tuple[Path, LabelSet]] = []
+    for lf in label_files:
+        try:
+            sets.append((lf, LabelSet.model_validate_json(lf.read_text(encoding="utf-8"))))
+        except Exception as exc:  # noqa: BLE001 — skip unreadable, never fatal
+            logger.warning("Skipping %s: %s", lf, exc)
+
+    updated = ReviewQueue(dataset_dir / "review_queue.jsonl").apply_decisions(
+        [s for _p, s in sets], decisions=decisions
+    )
+    # Rewrite the label files that changed.
+    for path, ls in sets:
+        path.write_text(ls.model_dump_json(indent=2), encoding="utf-8")
+
+    gold = sum(1 for _p, ls in sets for lab in ls.labels if lab.is_gold)
+    return {
+        "decisions_in_sheet": len(decisions),
+        "labels_updated": updated,
+        "gold_labels_now": gold,
+        "label_files": len(sets),
+    }
 
 
 def _part_id_from_record(rec: PanelRecord):

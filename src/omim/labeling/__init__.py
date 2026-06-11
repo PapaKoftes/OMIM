@@ -10,6 +10,11 @@ Turns identification output into confidence-scored, reviewable labels:
 from omim.labeling.autolabeler import AutoLabeler
 from omim.labeling.models import Label, LabelKind, LabelSet, ReviewStatus
 from omim.labeling.review import ReviewQueue
+from omim.labeling.review_sheet import (
+    export_review_sheet,
+    import_review_sheet,
+    write_glossary,
+)
 
 __all__ = [
     "AutoLabeler",
@@ -18,4 +23,7 @@ __all__ = [
     "LabelSet",
     "ReviewQueue",
     "ReviewStatus",
+    "export_review_sheet",
+    "import_review_sheet",
+    "write_glossary",
 ]

@@ -70,6 +70,18 @@ def main(argv: list[str] | None = None) -> int:
         help="Confidence >= this is auto-accepted; below goes to the review queue",
     )
 
+    # --- apply-review ---
+    ar_p = sub.add_parser(
+        "apply-review",
+        help="Fold a filled-in review_sheet.csv (edited by a carpenter/expert) "
+             "back into a built dataset — corrections become gold labels",
+    )
+    ar_p.add_argument("dataset_dir", type=Path, help="The built dataset directory")
+    ar_p.add_argument(
+        "--sheet", type=Path, default=None,
+        help="The filled review CSV (default: <dataset_dir>/review_sheet.csv)",
+    )
+
     # --- domains ---
     dom_p = sub.add_parser(
         "domains",
@@ -149,6 +161,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_nest(args)
     elif args.command == "build-dataset":
         return _cmd_build_dataset(args)
+    elif args.command == "apply-review":
+        return _cmd_apply_review(args)
     elif args.command == "domains":
         return _cmd_domains(args)
     elif args.command == "tune-ruleset":
@@ -349,6 +363,23 @@ def _cmd_tune_ruleset(args) -> int:
     print(f"Kept catalog default ({len(defaulted)}): {', '.join(defaulted) or 'none'}")
     for note in tuned.notes:
         print(f"  note: {note}")
+    return 0
+
+
+def _cmd_apply_review(args) -> int:
+    from omim.pipeline import apply_review_to_dataset
+
+    sheet = args.sheet or (args.dataset_dir / "review_sheet.csv")
+    if not sheet.exists():
+        print(f"Review sheet not found: {sheet}", file=sys.stderr)
+        return 1
+    result = apply_review_to_dataset(args.dataset_dir, sheet)
+    print(f"Decisions in sheet : {result['decisions_in_sheet']}")
+    print(f"Labels updated     : {result['labels_updated']}")
+    print(f"Gold labels now    : {result['gold_labels_now']}")
+    print(f"Label files        : {result['label_files']}")
+    print("\nCorrections folded in. Confirmed/corrected labels are now gold "
+          "ground truth in the dataset.")
     return 0
 
 

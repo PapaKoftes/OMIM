@@ -297,6 +297,8 @@ def _cmd_domains(args) -> int:
             return 1
         print(f"{d.key}  [{d.status.value}]\n  {d.title}\n  {d.summary}")
         print(f"\n  Fit: {d.fit}")
+        if d.maturity_note:
+            print(f"  Maturity: {d.maturity_note}")
         if d.feature_vocabulary:
             print(f"  Features: {', '.join(d.feature_vocabulary)}")
         if d.part_types:

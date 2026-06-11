@@ -13,6 +13,19 @@ Signals used (all derivable from 2D geometry + features):
 
 Thresholds are overridable via ``params`` so a corpus-tuned ruleset can adjust
 them (Wave 11) without code changes.
+
+CALIBRATION CAVEAT (read before trusting the confidences)
+---------------------------------------------------------
+Unlike the *feature* layer — whose thresholds are grounded in real manufacturer
+catalogs (Blum 35mm cup, 32mm system, Confirmat 7mm; see
+``omim.corpus.catalog_ground_truth``) — the *part-type* confidences here are
+HAND-SET engineering estimates, NOT catalog-derived and NOT yet validated against
+real drawings. The catalogs tell you "a 35mm bore 22.5mm from the edge is a hinge
+cup"; they do NOT tell you "this whole panel is a DOOR". That judgement is a
+heuristic over the feature mix, and its numeric confidence is currently a
+plausible guess, not a measured accuracy. Treat part identifications as advisory
+and route them through human review until calibrated on a real, expert-labelled
+panel corpus. See docs/STRATEGY.md ("the identification gap").
 """
 
 from __future__ import annotations

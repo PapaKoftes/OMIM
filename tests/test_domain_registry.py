@@ -89,6 +89,14 @@ def test_unknown_key_returns_none(reg):
     assert "does_not_exist" not in reg
 
 
+def test_panel_furniture_discloses_identification_is_experimental(reg):
+    """Honesty: the production panel domain must still disclose that its
+    part/assembly identification sub-layer is uncalibrated."""
+    note = reg.get("panel_furniture").maturity_note.lower()
+    assert "identification" in note
+    assert "experimental" in note
+
+
 def test_cli_domains_lists_all():
     from omim.cli import main
     assert main(["domains"]) == 0

@@ -19,6 +19,12 @@ DXF File → Parser → MGG Builder → Feature Classifier → Validation Engine
 
 **Authority Hierarchy:** Geometry Truth > Validation Truth > Semantic Truth > AI Truth
 
+> **Honest state:** geometry, features, and validation are catalog-grounded and
+> production-grade; *part/assembly identification* is experimental (hand-set
+> confidences, validated only on synthetic geometry, gated behind human review).
+> See [`docs/STRATEGY.md`](docs/STRATEGY.md) for what's grounded vs what isn't and
+> the one gap (real labelled DXFs) that closes it.
+
 ## Quick Start
 
 ```bash

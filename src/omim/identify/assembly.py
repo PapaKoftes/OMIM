@@ -6,6 +6,14 @@ they likely join. This is the "3D construction from 2D parts" layer.
 
 Pure, read-only, heuristic (authority Level 4-5).
 
+CALIBRATION CAVEAT: like part identification, assembly grouping is NOT
+catalog-grounded — manufacturer catalogs define hole/feature geometry, not which
+panels form one cabinet. The grouping signals and confidences here are hand-set
+and validated only on synthetic fixtures. Assembly/project identifications are
+the least-certain OMIM output; they are routed through the human review queue and
+must not be trusted as ground truth until calibrated on a real labelled corpus.
+See docs/STRATEGY.md.
+
 Grouping signals actually used (kept deliberately conservative):
   * source file/delivery scope — panels from different DXF files are never merged
     (the primary guard against conflating unrelated cabinets in a flat pile)

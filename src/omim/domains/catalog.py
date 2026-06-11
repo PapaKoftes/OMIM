@@ -71,6 +71,11 @@ CATALOG: list[DomainSpec] = [
         ),
         tools=(_EZDXF, _SHAPELY, _RECTPACK, _NETCAL),
         fit="Native fit; the whole pipeline was built here.",
+        maturity_note="Features + validation are production-grade and "
+                      "catalog-grounded. Part/assembly IDENTIFICATION is "
+                      "experimental: hand-set confidences, validated only on "
+                      "synthetic geometry, gated behind human review. See "
+                      "docs/STRATEGY.md.",
         module="omim.domains.panel",
     ),
     DomainSpec(

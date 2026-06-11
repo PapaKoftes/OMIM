@@ -80,6 +80,10 @@ class DomainSpec:
     fit: str = ""                    # one-line: why this fits (or is a stretch)
     blockers: tuple[str, ...] = ()
     module: str | None = None        # implementing module if any code exists
+    # Per-LAYER maturity caveat: ``status`` is the headline, but a PRODUCTION
+    # domain can still have an experimental sub-layer (e.g. panel features are
+    # production-grade while part/assembly identification is uncalibrated).
+    maturity_note: str = ""
 
     @property
     def has_real_data(self) -> bool:

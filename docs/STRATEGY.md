@@ -86,11 +86,49 @@ drawing-reading VLMs will need for training and evaluation.
   `omim.datasets.archcad`).
 - **PID2Graph** — the one real labelled corpus for an OMIM domain (P&ID).
 
-## Highest-leverage next steps (in order)
+## The end-to-end plan, anchored to the vision (not to "ship a product")
 
-1. **Acquire one real cabinet DXF** — turns identification from plausible into
-   measured; nothing else substitutes.
-2. **Promote `digital_fabrication`** (tab-and-slot) to a working domain — joints
-   live in the 2D geometry and open CC data (WikiHouse/OpenDesk) exists to
-   validate the assembly inference for real.
-3. Calibrate part/assembly confidences once (1) or (2) provides labels.
+OMIM is research infrastructure, NOT a product (see Vision_and_Scope.md). Its four
+named deliverables are: agnostic **middleware**, **synthetic dataset
+infrastructure**, a **benchmark suite**, and an **open research standard**. The
+finish line is a credible v1.0 of *those*, not a customer deployment. A real shop
+corpus is a **validation/test fixture used out-of-tree**, never a shipped dataset
+and never a source of generalized conventions (we proved naive tuning overfits one
+shop and corrupts the catalog — see "conventions are per-shop" below).
+
+What "conventions are per-shop" taught us: there is no single manufacturing
+convention to generalize. Each shop has its own layer dialect, decimal notation,
+and feature set. So OMIM must *be the translation layer*, not *be the convention*.
+The cabinet/Blum/32mm catalog is **one built-in profile, not "the truth."**
+
+Plan (critical path A -> benchmark -> standard; B/F raise the floor in parallel):
+
+- **A. Middleware = first-class profiles (keystone).** Replace the hard-coded
+  `DEFAULT_LAYER_MAP` + ad-hoc `ParserConfig` override with a real `LayerProfile`:
+  a named profile maps a shop's layer dialect onto OMIM's OWN type vocabulary
+  (cut/drill/pocket/border/engrave). `cabinet` ships in-repo as one default
+  adapter; customer profiles load from a path and live out-of-tree. This makes the
+  code structurally *be* the agnostic middleware the name claims.
+- **B. Dataset + provenance infrastructure.** Finish first-class annotation
+  provenance + the 2D-decidable classifier coverage so every synthetic sample is
+  reproducible and fully traceable.
+- **C. Benchmark suite as a first-class deliverable.** Standardized eval tasks
+  others can measure against; add a **real-world validation track** that runs a
+  profile against a held-out real corpus OUT OF TREE (the 631->50 UNKNOWN result
+  is that track's first datapoint). This is how OMIM becomes a *standard*, not a
+  tool.
+- **D. Calibrate on real labels (the data gate).** One real packet through
+  build-dataset -> carpenter review (visual) -> apply-review -> calibrate turns the
+  part/assembly confidences from guessed into measured. Reframed honestly: this
+  validates the middleware + feeds the benchmark's real track; it is not a service
+  for a customer.
+- **E. Second domain (prove agnosticism).** Promote `digital_fabrication`
+  (tab-and-slot; joints in geometry + open CC data) — same core, different
+  profile, structurally different domain. One domain is an anecdote; two is a
+  middleware.
+- **F. Open-standard hygiene.** Schema versioning, a public *synthetic* dataset +
+  benchmark release, a contribution/review path.
+
+Explicitly NOT doing: chasing ML accuracy before D; building the 11 stub domains;
+generalizing any shop's conventions into core (the profile system in A is what
+makes resisting that structural); positioning OMIM as a product.

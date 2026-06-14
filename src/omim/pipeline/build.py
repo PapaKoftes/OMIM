@@ -74,9 +74,12 @@ class DatasetBuilder:
         self,
         accept_threshold: float = 0.75,
         reject_threshold: float = 0.30,
+        profile: object | None = None,
     ) -> None:
         self._accept_threshold = accept_threshold
-        self._parser = DXFParser()
+        # A LayerProfile (agnostic-middleware seam) translates the shop's layer
+        # dialect into OMIM's canonical types; None = the built-in cabinet default.
+        self._parser = DXFParser(profile=profile)
         self._builder = MGGBuilder()
         self._classifier = FeatureClassifier()
         self._labeler = AutoLabeler(

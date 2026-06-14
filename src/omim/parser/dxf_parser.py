@@ -228,8 +228,23 @@ def _flatten_path(entity, segments: int) -> list[list[float]]:
 class DXFParser:
     """Parse a DXF file into RawGeometry."""
 
-    def __init__(self, config: ParserConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: ParserConfig | None = None,
+        profile: object | None = None,
+    ) -> None:
+        """Create a parser.
+
+        *profile* is an optional ``omim.profiles.LayerProfile`` (or anything with
+        an ``as_conventions()`` method) that maps a shop's layer dialect onto
+        OMIM's canonical types. When given, it supplies the layer conventions —
+        this is the agnostic-middleware front door. *config* still works for full
+        control; if both are given, an explicit non-default ``config`` wins.
+        """
         self.config = config or ParserConfig()
+        if profile is not None and config is None:
+            self.config = ParserConfig(layer_conventions=profile.as_conventions())
+        self.profile = profile
 
     # ------------------------------------------------------------------
     # Public API

@@ -2,14 +2,17 @@
 
 from pydantic import BaseModel, Field
 
-# Default layer-name prefix -> inferred operation type map (case-insensitive,
-# prefix-matched). Exposed here so a ParserConfig can override it.
+# Default layer-name prefix -> OMIM layer-type map (case-insensitive, prefix-
+# matched). This is the built-in ``cabinet`` LayerProfile, mirrored here as the
+# ParserConfig default. The single source of truth is omim.profiles.builtins;
+# profiles are the agnostic-middleware seam (a shop's dialect -> OMIM types).
+# A ParserConfig may override it directly, or DXFParser(profile=...) may swap it.
 DEFAULT_LAYER_MAP: dict[str, list[str]] = {
     "cut": ["CUT", "CUT_", "PROFILE", "OUTLINE", "OUTER", "CONTOUR"],
     "drill": ["DRILL", "HOLE", "BORE", "PUNCH"],
     "pocket": ["POCKET", "GROOVE", "SLOT", "DADO", "RABBET"],
     "border": ["BORDER", "SHEET", "STOCK", "MATERIAL"],
-    "engrave": ["ENGRAVE", "ETCH", "SCORE"],
+    "engrave": ["ENGRAVE", "ETCH", "SCORE", "MARK"],
 }
 
 

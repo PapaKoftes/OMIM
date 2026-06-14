@@ -33,6 +33,11 @@ def main(argv: list[str] | None = None) -> int:
     analyze_p.add_argument(
         "--cytoscape", action="store_true", help="Output in Cytoscape.js format"
     )
+    analyze_p.add_argument(
+        "--profile", default=None,
+        help="Layer profile: a built-in name (e.g. 'cabinet') or a path to a "
+             "customer profile YAML (maps the shop's layer dialect to OMIM types)",
+    )
 
     # --- validate ---
     validate_p = sub.add_parser("validate", help="Validate a DXF file")
@@ -69,6 +74,14 @@ def main(argv: list[str] | None = None) -> int:
         "--accept-threshold", type=float, default=0.75,
         help="Confidence >= this is auto-accepted; below goes to the review queue",
     )
+    bd_p.add_argument(
+        "--profile", default=None,
+        help="Layer profile: a built-in name (e.g. 'cabinet') or a path to a "
+             "customer profile YAML. The shop's layer dialect -> OMIM types.",
+    )
+
+    # --- profiles ---
+    sub.add_parser("profiles", help="List built-in layer profiles (agnostic-middleware adapters)")
 
     # --- apply-review ---
     ar_p = sub.add_parser(
@@ -165,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_apply_review(args)
     elif args.command == "domains":
         return _cmd_domains(args)
+    elif args.command == "profiles":
+        return _cmd_profiles(args)
     elif args.command == "tune-ruleset":
         return _cmd_tune_ruleset(args)
     elif args.command == "verify":
@@ -186,6 +201,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
 
+def _resolve_profile(args):
+    """Resolve a --profile flag (built-in name or YAML path) to a LayerProfile."""
+    name = getattr(args, "profile", None)
+    if not name:
+        return None
+    from omim.profiles import load_profile
+    return load_profile(name)
+
+
 def _cmd_analyze(args) -> int:
     from omim.graph.builder import MGGBuilder
     from omim.graph.serializer import mgg_to_cytoscape
@@ -193,7 +217,7 @@ def _cmd_analyze(args) -> int:
     from omim.semantic.classifier import FeatureClassifier
     from omim.validation.rule_engine import RuleEngine
 
-    parser = DXFParser()
+    parser = DXFParser(profile=_resolve_profile(args))
     result = parser.parse(args.file)
 
     if not result.success or not result.geometry:
@@ -383,10 +407,27 @@ def _cmd_apply_review(args) -> int:
     return 0
 
 
+def _cmd_profiles(args) -> int:
+    from omim.profiles import CANONICAL_LAYER_TYPES, builtin_profile_names, get_builtin_profile
+
+    print("OMIM canonical layer types:", ", ".join(CANONICAL_LAYER_TYPES))
+    print("\nBuilt-in profiles (one default adapter each, not 'the' convention):")
+    for name in builtin_profile_names():
+        prof = get_builtin_profile(name)
+        print(f"  {name}:")
+        for ltype, prefixes in prof.as_conventions().items():
+            print(f"    {ltype:9s} <- {', '.join(prefixes)}")
+    print("\nCustomer dialects load from a YAML path (kept out-of-tree):")
+    print("  omim build-dataset <corpus> <out> --profile path/to/customer.yaml")
+    return 0
+
+
 def _cmd_build_dataset(args) -> int:
     from omim.pipeline import DatasetBuilder
 
-    builder = DatasetBuilder(accept_threshold=args.accept_threshold)
+    builder = DatasetBuilder(
+        accept_threshold=args.accept_threshold, profile=_resolve_profile(args)
+    )
     summary = builder.build(args.corpus_dir, args.output_dir)
     print(f"Layout detected : {summary.layout}")
     print(f"DXF files       : {summary.dxf_files}")

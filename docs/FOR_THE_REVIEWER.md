@@ -14,11 +14,15 @@ Two files (open them in **Excel** or **Google Sheets** — they're spreadsheets)
 
 ## What the review sheet looks like
 
-| file | what OMIM thinks this is | how sure (%) | other guesses | is it right? (yes/no) | if no, what is it? | notes |
-|---|---|---|---|---|---|---|
-| door_L.dxf | hinge cup (35mm bore...) (hole / cut detail) | 90 | — | | | |
-| side_R.dxf | cabinet side (whole panel type) | 72 | shelf | | | |
-| shelf_2.dxf | shelf-pin hole (5mm...) (hole / cut detail) | 55 | dowel hole | | | |
+| file | picture | what OMIM thinks this is | how sure (%) | other guesses | is it right? (yes/no) | if no, what is it? | notes |
+|---|---|---|---|---|---|---|---|
+| door_L.dxf | thumbnails/…svg | hinge cup (35mm bore...) | 90 | — | | | |
+| side_R.dxf | thumbnails/…svg | cabinet side (whole panel) | 72 | shelf | | | |
+| shelf_2.dxf | thumbnails/…svg | shelf-pin hole (5mm...) | 55 | dowel hole | | | |
+
+The **picture** column is a path to a small drawing of the panel — open it
+(double-click, or it previews in most file managers) to *see* the part you're
+judging. Seeing the panel is far faster than guessing from the filename.
 
 OMIM only put a row here when it **wasn't confident** — the easy, obvious ones it
 already handled. So every row genuinely needs your eye.

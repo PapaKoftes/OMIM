@@ -31,6 +31,7 @@ from omim.labeling import (
     write_glossary,
 )
 from omim.labeling.autolabeler import labelset_from_project
+from omim.labeling.thumbnail import render_panel_svg
 from omim.nesting import analyze_nesting, split_raw_geometry_by_panels
 from omim.parser.dxf_parser import DXFParser
 from omim.pipeline.detect import CorpusLayout, detect_layout
@@ -53,6 +54,7 @@ class PanelRecord:
     label_set: LabelSet
     part_type: str
     mgg_dict: dict
+    svg: str = ""  # SVG thumbnail of the panel, for visual human review
 
 
 @dataclass
@@ -119,6 +121,7 @@ class DatasetBuilder:
                 label_set=ls,
                 part_type=part.part_type,
                 mgg_dict=mgg_dict,
+                svg=render_panel_svg(mgg),
             ))
         return records
 
@@ -152,8 +155,10 @@ class DatasetBuilder:
                 logger.warning("Skipping %s: %s", p, exc)
                 failures.append(f"{p}: {exc}")
 
-        # --- write per-panel samples ---
+        # --- write per-panel samples (+ SVG thumbnail for visual review) ---
         label_sets: list[LabelSet] = []
+        thumbnails: dict[str, str] = {}
+        (output_dir / "thumbnails").mkdir(parents=True, exist_ok=True)
         for rec in all_records:
             sample_dir = output_dir / "samples" / _safe(rec.panel_id)
             sample_dir.mkdir(parents=True, exist_ok=True)
@@ -163,6 +168,12 @@ class DatasetBuilder:
             (sample_dir / "labels.json").write_text(
                 rec.label_set.model_dump_json(indent=2), encoding="utf-8"
             )
+            if rec.svg:
+                svg_name = f"{_safe(rec.panel_id)}.svg"
+                (output_dir / "thumbnails" / svg_name).write_text(
+                    rec.svg, encoding="utf-8"
+                )
+                thumbnails[rec.panel_id] = f"thumbnails/{svg_name}"
             label_sets.append(rec.label_set)
 
         # --- group panels into projects + write project trees ---
@@ -192,7 +203,7 @@ class DatasetBuilder:
         n_review = ReviewQueue(review_path).export(label_sets)
         # A non-technical reviewer (a carpenter) edits the CSV in Excel/Sheets;
         # the glossary explains every term. Both round-trip via the same logic.
-        export_review_sheet(label_sets, output_dir / "review_sheet.csv")
+        export_review_sheet(label_sets, output_dir / "review_sheet.csv", thumbnails)
         write_glossary(output_dir / "review_glossary.csv")
 
         labels_total = sum(len(ls.labels) for ls in label_sets)

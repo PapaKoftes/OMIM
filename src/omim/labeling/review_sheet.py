@@ -56,11 +56,13 @@ _CLASS_PLAIN: dict[str, str] = {
     "DIVIDER": "divider / partition",
     "UNKNOWN_PART": "not sure / other",
     "UNKNOWN_FEATURE": "not sure / other",
+    "ENGRAVING": "engraving / marking",
 }
 
 _HEADER = [
     "row_id",                    # opaque id — DO NOT EDIT (links the answer back)
     "file",
+    "picture",                   # relative path to an SVG thumbnail of the panel
     "what OMIM thinks this is",
     "how sure (%)",
     "other guesses",
@@ -84,17 +86,25 @@ def _alts_plain(label: Label) -> str:
     return "; ".join(out)
 
 
-def export_review_sheet(label_sets: list[LabelSet], path: str | Path) -> int:
+def export_review_sheet(
+    label_sets: list[LabelSet],
+    path: str | Path,
+    thumbnails: dict[str, str] | None = None,
+) -> int:
     """Write below-confidence labels to a carpenter-friendly CSV. Returns #rows.
 
     Only NEEDS_REVIEW labels are written (the auto-accepted ones don't need a
     human). ``row_id`` is the opaque label_id so answers re-link on import.
+    *thumbnails* maps a LabelSet.graph_id to a relative SVG path, filled into the
+    "picture" column so the reviewer can see the panel.
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    thumbnails = thumbnails or {}
     rows: list[list[str]] = []
     for ls in label_sets:
         fname = Path(ls.source_file).name or ls.source_file or ls.graph_id
+        pic = thumbnails.get(ls.graph_id, "")
         for lab in ls.labels:
             if lab.review_status != ReviewStatus.NEEDS_REVIEW:
                 continue
@@ -102,6 +112,7 @@ def export_review_sheet(label_sets: list[LabelSet], path: str | Path) -> int:
             rows.append([
                 lab.label_id,
                 fname,
+                pic,
                 f"{plain_class(lab.value)}  ({kind})",
                 f"{round(lab.confidence * 100)}",
                 _alts_plain(lab),

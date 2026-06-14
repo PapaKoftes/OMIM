@@ -15,6 +15,7 @@ from omim.labeling.review_sheet import (
     import_review_sheet,
     write_glossary,
 )
+from omim.labeling.thumbnail import render_panel_svg
 
 __all__ = [
     "AutoLabeler",
@@ -25,5 +26,6 @@ __all__ = [
     "ReviewStatus",
     "export_review_sheet",
     "import_review_sheet",
+    "render_panel_svg",
     "write_glossary",
 ]

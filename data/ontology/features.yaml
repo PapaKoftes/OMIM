@@ -2,7 +2,7 @@
 # Domain: Cabinetry (MDF, plywood, melamine, particleboard)
 # Version: v0.1.0
 # Source: 04_ONTOLOGY/Feature_Taxonomy.md
-# 14 feature types + UNKNOWN_FEATURE
+# 20 feature types + UNKNOWN_FEATURE
 
 version: "v0.1.0"
 domain: "panel_manufacturing_2.5d"
@@ -384,6 +384,27 @@ features:
     operation: CNC_ROUTING
     parameters:
       radius_mm: null
+      tolerance_mm: 0.1
+
+  - id: ENGRAVING
+    label: "Engraving"
+    category: MILLED_FEATURES
+    description: "Shallow decorative or identifying cut (lettering, logos, marks) — \
+geometry rather than DXF TEXT entities; typically grouped on a dedicated engrave/\
+mark layer and cut at a small fixed depth."
+    detection:
+      geometry_type: lwpolyline
+      layer_keywords: ["ENGRAVE", "ETCH", "SCORE", "MARK"]
+      shallow_depth: true
+    confidence:
+      single_hole: 0.70
+      confirmed_pattern: 0.85
+    inference_method: "heuristic_layer_convention"
+    sources:
+      - "Woodworking marking / engraving practice"
+    operation: CNC_ROUTING
+    parameters:
+      depth_mm: "0.2-2.0"
       tolerance_mm: 0.1
 
   # =========================================================================

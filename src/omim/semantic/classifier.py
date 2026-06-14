@@ -69,6 +69,7 @@ FEATURE_TO_OPERATIONS: dict[str, list[str]] = {
     "RABBET": ["CNC_ROUTING"],
     "OPEN_SLOT": ["CNC_ROUTING"],
     "DADO": ["CNC_ROUTING"],
+    "ENGRAVING": ["CNC_ROUTING"],
     "PROFILE_CUT": ["PROFILE_CUTTING"],
     "INTERNAL_CUTOUT": ["PROFILE_CUTTING"],
 }
@@ -93,6 +94,7 @@ FEATURE_CATEGORIES: dict[str, str] = {
     "DADO": "MILLED_FEATURES",
     "RABBET": "MILLED_FEATURES",
     "OPEN_SLOT": "MILLED_FEATURES",
+    "ENGRAVING": "MILLED_FEATURES",
     "PROFILE_CUT": "PROFILE_FEATURES",
     "INTERNAL_CUTOUT": "PROFILE_FEATURES",
     "CHAMFER": "PROFILE_FEATURES",
@@ -673,6 +675,36 @@ class FeatureClassifier:
                 inference_method="material_heuristic",
                 rule="P7: CIRCLE default",
                 alternatives=alternatives,
+            )
+
+        # ---------------------------------------------------------------
+        # Priority 7b: geometry on an engrave/mark layer -> ENGRAVING.
+        # Shallow decorative/identifying cuts are drawn as ordinary polylines
+        # (not DXF TEXT entities), grouped on a dedicated engrave layer. Without
+        # this they fall through to UNKNOWN_FEATURE.
+        # ---------------------------------------------------------------
+        if (
+            geom_type in ("polyline", "lwpolyline", "line", "arc")
+            and not data.get("is_outer_boundary")
+            and (
+                inferred_layer_type == "engrave"
+                or _layer_contains(layer, "ENGRAVE")
+                or _layer_contains(layer, "ETCH")
+                or _layer_contains(layer, "SCORE")
+                or _layer_contains(layer, "MARK")
+            )
+        ):
+            return self._make_annotation(
+                node_id=node_id,
+                feature_class="ENGRAVING",
+                confidence=SEMANTIC_CONFIDENCE_CEILINGS["shop_convention"],
+                evidence=[{
+                    "type": "layer_match",
+                    "layer": layer,
+                    "inferred_type": "engrave",
+                }],
+                inference_method="shop_convention",
+                rule="P7b: geometry on engrave/mark layer",
             )
 
         # ---------------------------------------------------------------

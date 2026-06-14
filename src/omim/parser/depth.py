@@ -47,6 +47,18 @@ _MAX_THICK_MM = 80.0
 _DEPTH_LAYER_TYPES = {"pocket", "engrave", "drill"}
 
 
+# Some CAM post-processors encode the decimal point as a letter inside layer/
+# file names because '.' is awkward in identifiers — e.g. "3P0MM" or "3V0MM"
+# meaning 3.0mm. A letter is only a decimal separator when flanked by digits,
+# so this never touches the 'P' in "POCKET" or the 'V' in a real word.
+_DECIMAL_MARKER_RE = re.compile(r"(?<=\d)[PV](?=\d)", re.IGNORECASE)
+
+
+def _normalize_decimal_marker(text: str) -> str:
+    """Convert a digit-flanked P/V decimal marker to '.' (e.g. 3P0MM -> 3.0MM)."""
+    return _DECIMAL_MARKER_RE.sub(".", text)
+
+
 def _first_match(pattern: re.Pattern[str], text: str, lo: float, hi: float) -> float | None:
     for m in pattern.finditer(text):
         try:
@@ -69,6 +81,7 @@ def parse_depth_from_layer(layer_name: str, inferred_layer_type: str | None = No
     """
     if not layer_name:
         return None
+    layer_name = _normalize_decimal_marker(layer_name)
     # Explicit depth marker wins (unambiguous).
     explicit = _first_match(_DEPTH_RE, layer_name, _MIN_DEPTH_MM, _MAX_DEPTH_MM)
     if explicit is not None:
@@ -87,6 +100,7 @@ def parse_thickness_from_layer(layer_name: str) -> float | None:
     """
     if not layer_name:
         return None
+    layer_name = _normalize_decimal_marker(layer_name)
     explicit = _first_match(_THICK_RE, layer_name, _MIN_THICK_MM, _MAX_THICK_MM)
     if explicit is not None:
         return explicit

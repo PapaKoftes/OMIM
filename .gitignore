@@ -54,6 +54,9 @@ checkpoints/
 # Logs
 *.log
 
+# Clean-room: private corpora work + customer-specific CAM profiles (never commit)
+/secrets/
+
 # scratch / verification / experiment temp dirs (never commit)
 /_*/
 /_*

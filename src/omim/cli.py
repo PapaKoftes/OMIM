@@ -83,6 +83,18 @@ def main(argv: list[str] | None = None) -> int:
     # --- profiles ---
     sub.add_parser("profiles", help="List built-in layer profiles (agnostic-middleware adapters)")
 
+    # --- calibrate ---
+    cal_p = sub.add_parser(
+        "calibrate",
+        help="Fit a confidence calibrator from a reviewed dataset's gold labels "
+             "(turns hand-set confidences into measured ones)",
+    )
+    cal_p.add_argument("dataset_dir", type=Path, help="A reviewed dataset directory")
+    cal_p.add_argument(
+        "-o", "--output", type=Path, default=None,
+        help="Calibrator JSON path (default: <dataset_dir>/calibrator.json)",
+    )
+
     # --- apply-review ---
     ar_p = sub.add_parser(
         "apply-review",
@@ -180,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_domains(args)
     elif args.command == "profiles":
         return _cmd_profiles(args)
+    elif args.command == "calibrate":
+        return _cmd_calibrate(args)
     elif args.command == "tune-ruleset":
         return _cmd_tune_ruleset(args)
     elif args.command == "verify":
@@ -404,6 +418,23 @@ def _cmd_apply_review(args) -> int:
     print(f"Label files        : {result['label_files']}")
     print("\nCorrections folded in. Confirmed/corrected labels are now gold "
           "ground truth in the dataset.")
+    return 0
+
+
+def _cmd_calibrate(args) -> int:
+    from omim.pipeline import calibrate_from_dataset
+
+    out = args.output or (args.dataset_dir / "calibrator.json")
+    result = calibrate_from_dataset(args.dataset_dir, out)
+    print(f"Gold (human-reviewed) pairs : {result['gold_pairs']}")
+    print(f"Calibrator fitted           : {result['fitted']}")
+    if result["raw_ece"] is not None:
+        print(f"Raw ECE (pre-calibration)   : {result['raw_ece']}")
+    print(f"Calibrator written          : {result['calibrator_path']}")
+    if result["gold_pairs"] == 0:
+        print("\nNo gold labels yet — wrote an identity calibrator. Run "
+              "'apply-review' first so a human's answers become gold, then "
+              "re-run calibrate to get a measured mapping.")
     return 0
 
 

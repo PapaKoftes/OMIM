@@ -388,3 +388,36 @@ class IsotonicCalibrator:
             else:
                 break
         return round(val, 6)
+
+    # -- persistence -------------------------------------------------------
+
+    def to_dict(self) -> dict:
+        """Serialise the fitted mapping (JSON-friendly)."""
+        return {
+            "kind": "isotonic",
+            "fitted": self.fitted,
+            "breakpoints": [[round(x, 6), round(v, 6)] for x, v in self._breakpoints],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> IsotonicCalibrator:
+        cal = cls()
+        cal._breakpoints = [(float(x), float(v)) for x, v in data.get("breakpoints", [])]
+        cal.fitted = bool(data.get("fitted") and cal._breakpoints)
+        return cal
+
+    def save(self, path) -> None:
+        """Persist the calibrator to a JSON file."""
+        import json
+        from pathlib import Path
+
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(self.to_dict(), indent=2), encoding="utf-8")
+
+    @classmethod
+    def load(cls, path) -> IsotonicCalibrator:
+        import json
+        from pathlib import Path
+
+        return cls.from_dict(json.loads(Path(path).read_text(encoding="utf-8")))

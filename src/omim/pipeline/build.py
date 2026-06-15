@@ -265,6 +265,44 @@ def apply_review_to_dataset(dataset_dir: str | Path, sheet_path: str | Path) -> 
     }
 
 
+def calibrate_from_dataset(dataset_dir: str | Path, out_path: str | Path) -> dict:
+    """Fit + save a confidence calibrator from a reviewed dataset's GOLD labels.
+
+    The data gate, mechanised: once a human has reviewed the sheet (so labels are
+    HUMAN_CONFIRMED / HUMAN_CORRECTED), every gold label gives a real
+    ``(auto_confidence, was_the_auto_value_correct)`` pair. We fit an isotonic
+    calibrator on those pairs and persist it — turning the hand-set confidences
+    from "guessed" into "measured against a human". A no-op (identity) calibrator
+    is still written when there are no gold labels yet, so the step is safe to run
+    at any time.
+    """
+    from omim.labeling import LabelSet, ReviewStatus
+    from omim.semantic.calibration import IsotonicCalibrator, expected_calibration_error
+
+    dataset_dir = Path(dataset_dir)
+    pairs: list[tuple[float, bool]] = []
+    for lf in sorted((dataset_dir / "samples").glob("*/labels.json")):
+        try:
+            ls = LabelSet.model_validate_json(lf.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        for lab in ls.labels:
+            if lab.review_status == ReviewStatus.HUMAN_CONFIRMED:
+                pairs.append((lab.confidence, True))
+            elif lab.review_status == ReviewStatus.HUMAN_CORRECTED:
+                pairs.append((lab.confidence, False))  # auto value was wrong
+
+    cal = IsotonicCalibrator().fit(pairs)
+    cal.save(out_path)
+    ece = expected_calibration_error(pairs) if pairs else None
+    return {
+        "gold_pairs": len(pairs),
+        "fitted": cal.fitted,
+        "raw_ece": round(ece, 4) if ece is not None else None,
+        "calibrator_path": str(out_path),
+    }
+
+
 def _part_id_from_record(rec: PanelRecord):
     """Reconstruct a PartIdentification from a stored panel record (cheap)."""
     from omim.identify.models import PartIdentification

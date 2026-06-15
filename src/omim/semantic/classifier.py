@@ -207,7 +207,7 @@ class FeatureClassifier:
 
             # Outer boundary nodes are not features to classify
             if data.get("is_outer_boundary"):
-                annotation = FeatureAnnotation(
+                annotation = self._make_annotation(
                     node_id=nid,
                     feature_class="PROFILE_CUT",
                     confidence=0.95,
@@ -215,11 +215,8 @@ class FeatureClassifier:
                         "type": "boundary_flag",
                         "detail": "is_outer_boundary=True",
                     }],
-                    provenance={
-                        "inference_method": "deterministic",
-                        "pipeline_stage": "semantic_classification",
-                        "rule": "P9: Outermost closed contour",
-                    },
+                    inference_method="deterministic",
+                    rule="P9: Outermost closed contour",
                 )
                 feature_annotations.append(annotation)
                 continue
@@ -799,6 +796,52 @@ class FeatureClassifier:
             )
 
         # ---------------------------------------------------------------
+        # Priority 10b: short standalone LINE / ARC on a cut layer near the
+        # panel edge -> corner treatment. A diagonal LINE is a CHAMFER; an ARC
+        # is a FILLET. Both are 2D-decidable from geometry alone (no depth).
+        # Kept conservative: only short segments (a corner detail, not a long
+        # edge) on cut/border layers, away from the outer boundary itself.
+        # ---------------------------------------------------------------
+        if (
+            geom_type in ("line", "arc")
+            and not data.get("is_outer_boundary")
+            and inferred_layer_type in ("cut", "border", "unknown")
+        ):
+            seg_len = data.get("perimeter_mm") or data.get("length_mm")
+            short = seg_len is not None and seg_len <= 60.0
+            # A corner treatment's centroid sits ~half its own size in from the
+            # edge, so allow a modest setback; an interior feature is far away.
+            near_edge = edge_distance is not None and edge_distance <= 15.0
+            if short and near_edge:
+                if geom_type == "arc":
+                    return self._make_annotation(
+                        node_id=node_id,
+                        feature_class="FILLET",
+                        confidence=SEMANTIC_CONFIDENCE_CEILINGS["machine_heuristic"],
+                        evidence=[{
+                            "type": "corner_geometry",
+                            "geometry_type": "arc",
+                            "edge_distance_mm": edge_distance,
+                            "length_mm": seg_len,
+                        }],
+                        inference_method="machine_heuristic",
+                        rule="P10b: short arc at panel corner (fillet)",
+                    )
+                return self._make_annotation(
+                    node_id=node_id,
+                    feature_class="CHAMFER",
+                    confidence=SEMANTIC_CONFIDENCE_CEILINGS["machine_heuristic"],
+                    evidence=[{
+                        "type": "corner_geometry",
+                        "geometry_type": "line",
+                        "edge_distance_mm": edge_distance,
+                        "length_mm": seg_len,
+                    }],
+                    inference_method="machine_heuristic",
+                    rule="P10b: short line at panel corner (chamfer)",
+                )
+
+        # ---------------------------------------------------------------
         # Priority 11: No match -> UNKNOWN_FEATURE
         # ---------------------------------------------------------------
         return self._make_annotation(
@@ -849,10 +892,21 @@ class FeatureClassifier:
             feature_class=feature_class,
             confidence=confidence,
             evidence=evidence,
+            # First-class, self-consistent provenance: traceable record id, the
+            # actual confidence + how it was derived, evidence count, and the
+            # authority level (semantic inference = Level 5, below validation).
+            # Previously this was a 3-key dict missing the audit fields geometry
+            # nodes carry; enriched so an annotation is independently auditable.
             provenance={
-                "inference_method": inference_method,
+                "record_id": f"sem-{node_id}",
                 "pipeline_stage": "semantic_classification",
+                "module": "omim.semantic.classifier",
+                "inference_method": inference_method,
                 "rule": rule,
+                "confidence": confidence,
+                "confidence_method": "rule_based_heuristic",
+                "evidence_count": len(evidence),
+                "authority_level": 5,
             },
             alternative_classes=alternatives,
         )

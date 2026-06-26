@@ -49,14 +49,45 @@ def test_strip_layers_removes_all_layer_signal(tmp_path):
     assert aware_layers != {""}
 
 
-def test_features_recover_without_layer_names(tmp_path):
-    """The core claim: most features survive deletion of every layer name."""
+def test_catalog_convention_features_recover_without_layer_names(tmp_path):
+    """For a CATALOG-CONVENTION panel (standard 5/35/7/8mm bores), geometry alone
+    recovers most features — meaning is in the geometry, not the layer names.
+
+    NOTE: this is convention-dependent and NOT a universal guarantee. A shop that
+    drills one dominant non-catalog 'system' diameter for everything carries
+    feature meaning in its layer names instead, and recovers near zero here — see
+    test_single_system_dialect_does_not_recover_layer_blind below. That is correct
+    behaviour, not a defect (the omim.semantic.dialect_reliance detector flags it).
+    """
     rep = layer_blind_report(_realistic_panel(tmp_path))
     assert rep.total_features == 11
-    # Geometry alone must recover the large majority of features.
+    # Geometry alone recovers the large majority of CATALOG-convention features.
     assert rep.blind_known_ratio >= 0.8, rep.per_class_blind
-    # And it must reproduce the layer-aware answers, not just guess *something*.
     assert rep.agreement_ratio >= 0.8
+
+
+def test_single_system_dialect_does_not_recover_layer_blind(tmp_path):
+    """Honest counter-case: when every hole is one off-catalog diameter, geometry
+    CANNOT recover feature meaning layer-blind — and shouldn't pretend to."""
+    doc = ezdxf.new()
+    m = doc.modelspace()
+    m.add_lwpolyline([(0, 0), (600, 0), (600, 800), (0, 800)], close=True,
+                     dxfattribs={"layer": "CUT"})
+    for i in range(8):
+        for j in range(8):
+            m.add_circle((50 + i * 40, 100 + j * 40), radius=2.0,  # Ø4, off-catalog
+                         dxfattribs={"layer": "DRILL"})
+    p = tmp_path / "system.dxf"
+    doc.saveas(p)
+    mgg = MGGBuilder().build(DXFParser().parse(p).geometry)
+    rep = layer_blind_report(mgg)
+    # Layer-blind, the off-catalog system holes collapse to the GENERIC fallback
+    # (THROUGH_HOLE) — geometry recovers no SPECIFIC feature meaning. A shelf-pin,
+    # a dowel, and a cam bore at this diameter are indistinguishable without the
+    # layer name. That is the honest limit, not a defect.
+    specific = {k: v for k, v in rep.per_class_blind.items()
+                if k not in ("THROUGH_HOLE", "PROFILE_CUT", "UNKNOWN_FEATURE")}
+    assert not specific, f"unexpected specific recovery: {specific}"
 
 
 def test_grid_shelf_pins_are_geometric(tmp_path):

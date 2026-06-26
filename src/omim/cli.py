@@ -438,6 +438,7 @@ def _cmd_apply_review(args) -> int:
 def _cmd_layer_blind(args) -> int:
     from omim.graph.builder import MGGBuilder
     from omim.parser.dxf_parser import DXFParser
+    from omim.semantic.dialect_reliance import assess_dialect_reliance
     from omim.semantic.layer_blind import layer_blind_report
 
     result = DXFParser(profile=_resolve_profile(args)).parse(args.file)
@@ -452,8 +453,17 @@ def _cmd_layer_blind(args) -> int:
     print(f"Classified (NO layers)  : {rep.blind_known} ({rep.blind_known_ratio:.0%})")
     print(f"Agreement (geometry won): {rep.agreement_ratio:.0%}")
     print(f"Recovered layer-blind   : {rep.per_class_blind}")
-    print("\nHigh agreement => the classification is real geometric inference, "
-          "not just reading the shop's layer names.")
+    # Whether layer-blind inference is even expected to work here depends on the
+    # dialect: catalog-convention shops carry meaning in geometry; single-system-
+    # hole shops carry it in the layer names. Report that honestly.
+    dial = assess_dialect_reliance(mgg)
+    print(f"\nDialect: {dial.message}")
+    if dial.relies_on_layers:
+        print("=> Low layer-blind recovery is EXPECTED here and not a defect: this "
+              "dialect needs a layer profile for feature meaning.")
+    else:
+        print("=> High agreement here means real geometric inference, not just "
+              "reading the layer names.")
     return 0
 
 

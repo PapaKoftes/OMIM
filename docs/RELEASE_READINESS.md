@@ -17,6 +17,12 @@ This is the checklist + the honest maturity map.
 
 - **Grounded (catalog/standards-derived, production):** geometry, depth/2.5D,
   features (holes/pockets/hinge/dowel/engraving/chamfer/fillet), validation rules.
+- **Convention-dependent (feature inference):** geometric (layer-blind) feature
+  recovery is high for catalog-convention shops and low for single-system-hole
+  shops, where the layer name is the primary signal and a LayerProfile is
+  required. `omim.semantic.dialect_reliance` detects and reports the regime; the
+  strength on arbitrary shops is profile-driven translation + linting, not
+  layer-blind magic. See STRATEGY.md.
 - **Not yet calibrated (experimental, review-gated):** part / assembly / project
   identification — hand-set confidences, validated only on synthetic geometry.
   `docs/STRATEGY.md` and the module docstrings carry this caveat; the domain

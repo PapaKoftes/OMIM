@@ -39,6 +39,28 @@ labels for *identification* — no catalog says "this panel is a door" or "these
 five panels are one carcass". Those are heuristics whose confidence numbers are
 plausible guesses, validated only on synthetic geometry.
 
+### Feature inference is CONVENTION-DEPENDENT (the honest limit)
+
+A tempting overclaim is "OMIM infers features from geometry, not layer names"
+(the `layer-blind` capability). That is true **only for catalog-convention
+shops** — those that drill standard bores (5mm shelf pin on a 32mm grid, 35mm
+hinge cup, 7mm Confirmat). There, deleting every layer name barely dents
+classification, because the meaning is in the geometry.
+
+It is **false for single-system-hole shops** — those that drill one dominant
+diameter for nearly everything (common in production digital fabrication). There,
+a hole's meaning (shelf pin? dowel? cam bore? connector?) lives in the **layer
+name**, not the geometry; layer-blind, those holes collapse to a generic
+through-hole. Validated on a real such corpus, layer-blind feature recovery was
+**~11%**, versus ~100% on a catalog-convention synthetic panel.
+
+This is not a defect — for these shops the layer name is the *primary* signal, and
+the LayerProfile system exists exactly to read it. OMIM detects which regime a
+panel is in (`omim.semantic.dialect_reliance`) and says so honestly: a
+single-system dialect *requires* a layer profile for feature meaning. The lesson:
+OMIM's real strength on arbitrary shops is **profile-driven translation +
+manufacturability linting + dataset bootstrapping**, not layer-blind inference.
+
 ## The single best baseline (how we know the data is good)
 
 > Can OMIM reproduce cabinet geometry that conforms to Blum/Hettich/32mm

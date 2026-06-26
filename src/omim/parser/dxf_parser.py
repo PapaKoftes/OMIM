@@ -20,6 +20,7 @@ from pathlib import Path
 
 import ezdxf
 from ezdxf import path as ezdxf_path
+from ezdxf import recover as ezdxf_recover
 from shapely.geometry import LinearRing, LineString, Point, Polygon
 
 from omim.parser.depth import resolve_depth
@@ -280,20 +281,40 @@ class DXFParser:
                 )],
             )
 
-        # Parse with ezdxf — A-002 corrupt/binary/unreadable
+        # Parse with ezdxf — A-002 corrupt/binary/unreadable.
+        # Real-world DXFs exported by assorted CAM/CAD systems are frequently
+        # slightly malformed (out-of-order sections, missing handles, stray
+        # tags). ezdxf.recover re-reads tag-by-tag and repairs the structure,
+        # salvaging files that strict readfile rejects. Since OMIM only reads,
+        # a recovered document is safe to use; we fall back to it before
+        # declaring the file corrupt.
+        recovered = False
         try:
             doc = ezdxf.readfile(str(filepath))
-        except ezdxf.DXFStructureError as e:
-            logger.error("DXF corrupt: %s: %s", filepath, e)
-            return self._corrupt(e)
-        except Exception as e:  # noqa: BLE001 - any read failure is a corrupt file
-            logger.error("DXF unreadable: %s: %s", filepath, e)
-            return self._corrupt(e)
+        except Exception as e:  # noqa: BLE001 - strict read failed; try recovery
+            try:
+                doc, _auditor = ezdxf_recover.readfile(str(filepath))
+                recovered = True
+                logger.warning(
+                    "DXF recovered from structural errors: %s (%s)", filepath, e
+                )
+            except Exception:  # noqa: BLE001 - genuinely unreadable/corrupt
+                logger.error("DXF corrupt (recover failed): %s: %s", filepath, e)
+                return self._corrupt(e)
 
         file_hash = _file_hash(filepath)
         dxf_version = doc.dxfversion
 
         warnings: list[ParseWarning] = []
+
+        if recovered:
+            warnings.append(ParseWarning(
+                warning_code="recovered_from_corruption",
+                message=(
+                    "File had DXF structural errors; read via ezdxf.recover. "
+                    "Geometry is used as-is but may be incomplete."
+                ),
+            ))
 
         # A-003: DXF version handling. ezdxf can READ legacy R12 (AC1009) — a very
         # common CAM/CNC interchange format — even though it cannot WRITE it. Since

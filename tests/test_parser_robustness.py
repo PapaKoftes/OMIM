@@ -155,6 +155,62 @@ def test_case02b_legacy_r12_accepted_with_warning(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Case 2c: structurally-broken DXF salvaged via ezdxf.recover
+# ---------------------------------------------------------------------------
+
+
+def test_case02c_structural_error_recovered_with_warning(tmp_path, monkeypatch):
+    """Real-world DXFs from assorted CAM/CAD exporters are frequently slightly
+    malformed and make strict ezdxf.readfile raise DXFStructureError. ezdxf
+    ships a tag-by-tag `recover` reader that salvages them. The parser must
+    fall back to it (OMIM only reads) rather than dropping a valid file as
+    corrupt. We force the strict path to fail and assert the recover fallback
+    extracts geometry and flags it with `recovered_from_corruption`."""
+    doc = _new_doc()
+    msp = doc.modelspace()
+    msp.add_lwpolyline(
+        [(0, 0), (300, 0), (300, 200), (0, 200)],
+        close=True,
+        dxfattribs={"layer": "CUT"},
+    )
+    msp.add_circle((150, 100), radius=2.5, dxfattribs={"layer": "DRILL"})
+    path = _save(doc, tmp_path, name="recoverable.dxf")
+
+    import omim.parser.dxf_parser as parser_mod
+
+    def _boom(*_a, **_k):
+        raise ezdxf.DXFStructureError("synthetic structural error")
+
+    monkeypatch.setattr(parser_mod.ezdxf, "readfile", _boom)
+
+    result = DXFParser().parse(path)
+    assert result.success, result.errors  # salvaged, not declared corrupt
+    assert result.geometry is not None
+    assert "recovered_from_corruption" in _warn_codes(result.geometry)
+    # Geometry is actually recovered through the fallback path.
+    assert any(e.entity_type == "CIRCLE" for e in result.geometry.entities)
+
+
+def test_case02d_unrecoverable_file_still_reports_corrupt(tmp_path, monkeypatch):
+    """If recovery also fails, the parser must still return a clean
+    DXF_CORRUPT result (never crash)."""
+    path = tmp_path / "garbage.dxf"
+    path.write_text("this is not a dxf file at all\n")
+
+    import omim.parser.dxf_parser as parser_mod
+
+    def _boom(*_a, **_k):
+        raise ezdxf.DXFStructureError("synthetic structural error")
+
+    # Strict read fails; recover also fails on genuine garbage.
+    monkeypatch.setattr(parser_mod.ezdxf, "readfile", _boom)
+
+    result = DXFParser().parse(path)
+    assert not result.success
+    assert result.errors and result.errors[0].error_code == "DXF_CORRUPT"
+
+
+# ---------------------------------------------------------------------------
 # Case 3: LWPOLYLINE with bulge (arc segments)
 # ---------------------------------------------------------------------------
 

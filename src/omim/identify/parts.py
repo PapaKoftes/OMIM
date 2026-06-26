@@ -168,4 +168,34 @@ def identify_part(
         height_mm=h,
         thickness_mm=thickness,
         feature_summary=summary,
+        edge_hole_counts=_edge_hole_counts(mgg),
     )
+
+
+def _edge_hole_counts(mgg: ManufacturingGeometryGraph, band_mm: float = 50.0) -> dict[str, int]:
+    """Count holes within *band_mm* of each panel edge (left/right/top/bottom).
+
+    Edge joinery (dowel/confirmat rows along an edge) is the geometric signal the
+    assembly solver uses to deduce which panels mate. Returns {} when the panel
+    bbox is unknown.
+    """
+    bbox = mgg.metadata.panel_bbox
+    if not bbox or len(bbox) < 4:
+        return {}
+    xmin, ymin, xmax, ymax = bbox
+    counts = {"left": 0, "right": 0, "top": 0, "bottom": 0}
+    for _nid, d in mgg.geometry_nodes():
+        if d.get("geometry_type") != "circle" or d.get("is_outer_boundary"):
+            continue
+        c = d.get("centroid")
+        if not c:
+            continue
+        if abs(c[0] - xmin) <= band_mm:
+            counts["left"] += 1
+        if abs(c[0] - xmax) <= band_mm:
+            counts["right"] += 1
+        if abs(c[1] - ymin) <= band_mm:
+            counts["bottom"] += 1
+        if abs(c[1] - ymax) <= band_mm:
+            counts["top"] += 1
+    return {k: v for k, v in counts.items() if v > 0}

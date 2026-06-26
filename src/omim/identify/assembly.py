@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from omim.identify.assembly_solver import solve_carcass
 from omim.identify.models import (
     AssemblyIdentification,
     JoinHypothesis,
@@ -98,26 +99,55 @@ def identify_assemblies(
             panel_id=pid.panel_id, part_type=pid.part_type,
             part_confidence=pid.confidence, width_mm=pid.width_mm,
             height_mm=pid.height_mm, thickness_mm=pid.thickness_mm,
-            source_file=src,
+            source_file=src, edge_hole_counts=pid.edge_hole_counts,
         )
         for pid, src in panels
     ]
 
-    # Group by (source_file, thickness band). Scoping by source_file FIRST is the
-    # key guard: panels from different DXF deliveries are never merged into one
-    # assembly just because they share a common stock thickness (e.g. a flat pile
-    # of 18mm panels from 5 different cabinets stays 5 groups, not one). Panels
-    # with no recovered thickness fall back to grouping by source_file alone.
-    buckets: dict[tuple[str, int | None], list[PanelRef]] = {}
+    # Scope by source_file FIRST (the key guard): panels from different DXF
+    # deliveries are never merged just because they share a thickness. Within a
+    # source file we try a GEOMETRIC solve over ALL its panels (a real carcass
+    # mixes an 18mm body with a 6mm back, which thickness-banding would wrongly
+    # split). Only if the source-file group doesn't geometrically solve do we fall
+    # back to thickness-banding (the conservative flat-pile case).
+    by_source: dict[str, list[PanelRef]] = {}
     for r in refs:
-        key = (r.source_file, _thickness_key(r.thickness_mm, thickness_tol))
-        buckets.setdefault(key, []).append(r)
+        by_source.setdefault(r.source_file, []).append(r)
 
     assemblies: list[AssemblyIdentification] = []
     idx = 0
+    buckets: dict[tuple[str, int | None], list[PanelRef]] = {}
 
     def _make(group: list[PanelRef], thickness_grouped: bool) -> AssemblyIdentification:
         nonlocal idx
+        idx += 1
+
+        # Geometric solver FIRST: if the group's geometry deduces a carcass, its
+        # deduced roles + joins are stronger evidence than per-panel part guesses.
+        solved = solve_carcass(group) if len(group) >= min_group else None
+        if solved is not None and solved.solved:
+            # Apply deduced roles back onto the panels (deduction beats guessing).
+            for p in group:
+                role = solved.roles.get(p.panel_id)
+                if role:
+                    p.part_type = role
+                    p.part_confidence = max(p.part_confidence, solved.confidence)
+            return AssemblyIdentification(
+                assembly_id=f"asm-{idx}",
+                panels=group,
+                panel_count=len(group),
+                confidence=solved.confidence,
+                assembly_type=solved.assembly_type,
+                joins=solved.joins,
+                evidence=[{
+                    "type": "geometric_solve",
+                    "roles": solved.roles,
+                    "reasons": solved.reasons,
+                }],
+                provenance=_provenance(),
+            )
+
+        # Fallback: heuristic grouping by part-set (the prior behaviour).
         part_set = {p.part_type for p in group}
         if part_set & _DRAWER_PARTS:
             atype, base_conf = "DRAWER", 0.6
@@ -133,7 +163,6 @@ def identify_assemblies(
             "part_types": sorted(part_set),
             "panel_count": len(group),
         }]
-        idx += 1
         return AssemblyIdentification(
             assembly_id=f"asm-{idx}",
             panels=group,
@@ -144,6 +173,15 @@ def identify_assemblies(
             evidence=evidence,
             provenance=_provenance(),
         )
+
+    # Source-file-first geometric solve; unsolved sources fall to thickness bands.
+    for src, group in by_source.items():
+        if len(group) >= min_group and solve_carcass(group).solved:
+            assemblies.append(_make(group, thickness_grouped=False))
+        else:
+            for r in group:
+                key = (src, _thickness_key(r.thickness_mm, thickness_tol))
+                buckets.setdefault(key, []).append(r)
 
     for (_src, band), group in buckets.items():
         grouped = band is not None and len(group) >= min_group

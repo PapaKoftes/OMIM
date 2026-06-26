@@ -48,6 +48,9 @@ class PartIdentification(BaseModel):
     height_mm: float | None = None
     thickness_mm: float | None = None
     feature_summary: dict[str, int] = Field(default_factory=dict)  # feature_class -> count
+    # Holes near each panel edge (left/right/top/bottom) — the edge-joinery signal
+    # the assembly solver uses to deduce how panels mate.
+    edge_hole_counts: dict[str, int] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +68,11 @@ class PanelRef(BaseModel):
     height_mm: float | None = None
     thickness_mm: float | None = None
     source_file: str = ""
+    # Count of holes within a small band of each panel edge, keyed by edge
+    # ("left"/"right"/"top"/"bottom"). Edge joinery (dowel/confirmat rows) on a
+    # panel edge is what mates it to a neighbouring panel — the geometric signal
+    # that lets the assembly solver DEDUCE structure instead of guessing.
+    edge_hole_counts: dict[str, int] = Field(default_factory=dict)
 
 
 class JoinHypothesis(BaseModel):

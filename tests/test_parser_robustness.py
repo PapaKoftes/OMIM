@@ -129,6 +129,31 @@ def test_case02_legacy_polyline(tmp_path):
     _build_mgg(geom)
 
 
+def test_case02b_legacy_r12_accepted_with_warning(tmp_path):
+    """Legacy R12 (AC1009) — a very common CAM/CNC interchange format — must be
+    READ (ezdxf supports reading it), not rejected on a version gate. Real shops
+    export R12; dropping it silently loses whole files."""
+    import ezdxf as _ezdxf
+    doc = _ezdxf.new("R12")
+    doc.header["$INSUNITS"] = 4
+    msp = doc.modelspace()
+    pl = msp.add_polyline2d(
+        [(0, 0), (300, 0), (300, 200), (0, 200)], dxfattribs={"layer": "CUT"},
+    )
+    pl.close(True)
+    msp.add_circle((150, 100), radius=2.5, dxfattribs={"layer": "DRILL"})
+    p = tmp_path / "legacy.dxf"
+    doc.saveas(str(p))
+
+    result = DXFParser().parse(p)
+    assert result.success, result.errors  # accepted, not rejected
+    assert result.geometry is not None
+    assert "legacy_dxf_version" in _warn_codes(result.geometry)
+    # Geometry is actually recovered (boundary + the hole).
+    assert any(e.entity_type == "CIRCLE" for e in result.geometry.entities)
+    assert result.geometry.panel_boundary is not None
+
+
 # ---------------------------------------------------------------------------
 # Case 3: LWPOLYLINE with bulge (arc segments)
 # ---------------------------------------------------------------------------

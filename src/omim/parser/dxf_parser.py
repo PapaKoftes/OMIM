@@ -293,21 +293,21 @@ class DXFParser:
         file_hash = _file_hash(filepath)
         dxf_version = doc.dxfversion
 
-        # A-003: DXF version check — versions below AC1015 are unsupported
-        if dxf_version < "AC1015":
-            return ParseResult(
-                success=False,
-                errors=[ParseError(
-                    error_code="DXF_VERSION_UNSUPPORTED",
-                    message=(
-                        f"DXF version {dxf_version} is below AC1015 "
-                        "(AutoCAD 2000 minimum)"
-                    ),
-                    recoverable=False,
-                )],
-            )
-
         warnings: list[ParseWarning] = []
+
+        # A-003: DXF version handling. ezdxf can READ legacy R12 (AC1009) — a very
+        # common CAM/CNC interchange format — even though it cannot WRITE it. Since
+        # OMIM only reads, rejecting pre-AC1015 outright drops valid real-world
+        # files. We accept them with a warning (the geometry is what matters); only
+        # versions ezdxf genuinely cannot open will have already raised on readfile.
+        if dxf_version < "AC1015":
+            warnings.append(ParseWarning(
+                warning_code="legacy_dxf_version",
+                message=(
+                    f"Legacy DXF version {dxf_version} (pre-AutoCAD-2000); read via "
+                    "ezdxf. Geometry is used as-is."
+                ),
+            ))
 
         # B-007: Units. $INSUNITS == 1 -> inches.
         units_original = "mm"

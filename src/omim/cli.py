@@ -83,6 +83,18 @@ def main(argv: list[str] | None = None) -> int:
     # --- profiles ---
     sub.add_parser("profiles", help="List built-in layer profiles (agnostic-middleware adapters)")
 
+    # --- layer-blind ---
+    lb_p = sub.add_parser(
+        "layer-blind",
+        help="Re-classify a DXF with all layer names deleted, to show how much "
+             "OMIM infers from geometry alone (the 'is it really inference?' test)",
+    )
+    lb_p.add_argument("file", type=Path, help="Path to DXF file")
+    lb_p.add_argument(
+        "--profile", default=None,
+        help="Layer profile for the layer-aware baseline",
+    )
+
     # --- calibrate ---
     cal_p = sub.add_parser(
         "calibrate",
@@ -194,6 +206,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_profiles(args)
     elif args.command == "calibrate":
         return _cmd_calibrate(args)
+    elif args.command == "layer-blind":
+        return _cmd_layer_blind(args)
     elif args.command == "tune-ruleset":
         return _cmd_tune_ruleset(args)
     elif args.command == "verify":
@@ -418,6 +432,28 @@ def _cmd_apply_review(args) -> int:
     print(f"Label files        : {result['label_files']}")
     print("\nCorrections folded in. Confirmed/corrected labels are now gold "
           "ground truth in the dataset.")
+    return 0
+
+
+def _cmd_layer_blind(args) -> int:
+    from omim.graph.builder import MGGBuilder
+    from omim.parser.dxf_parser import DXFParser
+    from omim.semantic.layer_blind import layer_blind_report
+
+    result = DXFParser(profile=_resolve_profile(args)).parse(args.file)
+    if not result.success or not result.geometry:
+        for err in result.errors:
+            print(f"ERROR [{err.error_code}]: {err.message}", file=sys.stderr)
+        return 1
+    mgg = MGGBuilder().build(result.geometry)
+    rep = layer_blind_report(mgg)
+    print(f"Total features         : {rep.total_features}")
+    print(f"Classified (with layers): {rep.aware_known}")
+    print(f"Classified (NO layers)  : {rep.blind_known} ({rep.blind_known_ratio:.0%})")
+    print(f"Agreement (geometry won): {rep.agreement_ratio:.0%}")
+    print(f"Recovered layer-blind   : {rep.per_class_blind}")
+    print("\nHigh agreement => the classification is real geometric inference, "
+          "not just reading the shop's layer names.")
     return 0
 
 

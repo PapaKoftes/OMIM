@@ -102,6 +102,45 @@ def test_case01_spline_segment_count_config(tmp_path):
     assert n_fine > n_coarse
 
 
+def test_curve_flattening_tolerance_controls_point_count(tmp_path):
+    """curve_flattening_tolerance_mm bounds the spline approximation error: a
+    coarser tolerance yields fewer points than a finer one. (Guards the
+    performance fix — the old hardcoded 0.01mm exploded large curves into tens
+    of thousands of points.)"""
+    doc = _new_doc()
+    # A large-extent wavy spline so the chord tolerance — not the segment
+    # floor — drives the point count.
+    doc.modelspace().add_spline(
+        [(0, 0), (500, 400), (1000, -200), (1500, 600), (2000, 0)]
+    )
+    path = _save(doc, tmp_path)
+
+    coarse = _parse_ok(path, ParserConfig(
+        spline_approximation_segments=4, curve_flattening_tolerance_mm=2.0))
+    fine = _parse_ok(path, ParserConfig(
+        spline_approximation_segments=4, curve_flattening_tolerance_mm=0.01))
+    n_coarse = len(coarse.entities[0].coordinates)
+    n_fine = len(fine.entities[0].coordinates)
+    assert n_fine > n_coarse
+    assert n_coarse >= 4  # still a usable contour
+
+
+def test_circle_area_perimeter_exact_closed_form(tmp_path):
+    """Circle area/perimeter are exact closed-form (pi*r^2, 2*pi*r), not a
+    256-gon buffer approximation — faster and more accurate."""
+    doc = _new_doc()
+    doc.modelspace().add_circle(
+        (100, 100), radius=10.0, dxfattribs={"layer": "DRILL"}
+    )
+    geom = _parse_ok(_save(doc, tmp_path))
+    circ = next(e for e in geom.entities if e.entity_type == "CIRCLE")
+    assert circ.area_mm2 == round(math.pi * 10.0 * 10.0, 4)
+    assert circ.perimeter_mm == round(2 * math.pi * 10.0, 4)
+    assert circ.diameter_mm == 20.0
+    assert circ.radius_mm == 10.0
+    assert circ.centroid == [100.0, 100.0]
+
+
 # ---------------------------------------------------------------------------
 # Case 2: Legacy POLYLINE (not LWPOLYLINE)
 # ---------------------------------------------------------------------------

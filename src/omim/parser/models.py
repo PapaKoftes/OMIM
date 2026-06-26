@@ -31,6 +31,11 @@ class ParserConfig(BaseModel):
     )
     # Number of segments used to approximate a SPLINE/ELLIPSE as a polyline.
     spline_approximation_segments: int = 50
+    # Max chord-to-curve distance (mm) when flattening SPLINE/ELLIPSE/bulge
+    # curves to polylines. This bounds the approximation error: 0.05mm is far
+    # finer than any panel-CNC tool path, while being ~5x coarser than a naive
+    # 0.01mm which makes large curves explode into tens of thousands of points.
+    curve_flattening_tolerance_mm: float = 0.05
     # Explode simple INSERT (block reference) entities into their primitives.
     explode_inserts: bool = True
     # Max INSERT nesting depth to explode (guards against pathological recursion).

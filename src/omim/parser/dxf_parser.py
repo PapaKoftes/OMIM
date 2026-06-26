@@ -21,7 +21,7 @@ from pathlib import Path
 import ezdxf
 from ezdxf import path as ezdxf_path
 from ezdxf import recover as ezdxf_recover
-from shapely.geometry import LinearRing, LineString, Point, Polygon
+from shapely.geometry import LinearRing, LineString, Polygon
 
 from omim.parser.depth import resolve_depth
 from omim.parser.models import (
@@ -121,13 +121,17 @@ def _scale_pts(
 
 
 def _compute_shapely_circle(cx: float, cy: float, r: float) -> dict:
-    """Compute Shapely-derived properties for a circle."""
-    shape = Point(cx, cy).buffer(r, quad_segs=64)
+    """Compute geometric properties for a circle.
+
+    Area and perimeter are exact closed-form (pi*r^2, 2*pi*r) — this is both
+    faster and more accurate than buffering the point into a 256-gon polygon
+    and measuring that approximation.
+    """
     return {
         "bounding_box": [cx - r, cy - r, cx + r, cy + r],
         "centroid": [cx, cy],
-        "area_mm2": round(shape.area, 4),
-        "perimeter_mm": round(shape.length, 4),
+        "area_mm2": round(math.pi * r * r, 4),
+        "perimeter_mm": round(2 * math.pi * r, 4),
         "diameter_mm": round(r * 2, 4),
         "radius_mm": round(r, 4),
     }
@@ -182,15 +186,18 @@ def _compute_shapely_arc(cx: float, cy: float, r: float,
 
 
 def _compute_shapely_line(pts: list[list[float]]) -> dict:
-    """Compute Shapely-derived properties for a line segment."""
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
-    line = LineString(pts)
-    c = line.centroid
+    """Compute geometric properties for a straight line segment.
+
+    For a two-point segment the length is the Euclidean distance and the
+    centroid is the midpoint — both closed-form and identical to what Shapely
+    returns, without constructing a LineString per line (line-dense panels can
+    carry tens of thousands of LINE entities).
+    """
+    (sx, sy), (ex, ey) = pts[0], pts[-1]
     return {
-        "bounding_box": [min(xs), min(ys), max(xs), max(ys)],
-        "centroid": [round(c.x, 4), round(c.y, 4)],
-        "perimeter_mm": round(line.length, 4),
+        "bounding_box": [min(sx, ex), min(sy, ey), max(sx, ex), max(sy, ey)],
+        "centroid": [round((sx + ex) / 2, 4), round((sy + ey) / 2, 4)],
+        "perimeter_mm": round(math.hypot(ex - sx, ey - sy), 4),
     }
 
 
@@ -202,27 +209,31 @@ def _has_bulge(entity) -> bool:
         return False
 
 
-def _flatten_path(entity, segments: int) -> list[list[float]]:
+def _flatten_path(entity, segments: int, tolerance: float = 0.05) -> list[list[float]]:
     """Flatten any path-convertible entity to XY points in WCS.
 
     Uses ezdxf's path machinery so bulges/curves are honoured. ``segments`` is
     a target resolution; we derive a flattening distance from the entity's
     extent so the segment count is roughly respected without being brittle.
+    ``tolerance`` is the floor on the chord distance — it stops tiny curves
+    from being subdivided into needlessly many points.
     """
     p = ezdxf_path.make_path(entity)
     # Estimate a flattening tolerance from the bounding extent so that curves
-    # get ~`segments` chords. Fall back to a small absolute distance.
+    # get ~`segments` chords. Fall back to a small absolute distance. Never
+    # subdivide finer than `tolerance` (no manufacturing-relevant gain, large
+    # cost on big curves).
     try:
         ctrl = list(p.control_vertices())
         if ctrl:
             xs = [v.x for v in ctrl]
             ys = [v.y for v in ctrl]
             extent = max(max(xs) - min(xs), max(ys) - min(ys), 1.0)
-            distance = max(extent / max(segments, 1), 1e-4)
+            distance = max(extent / max(segments, 1), tolerance)
         else:
-            distance = 0.1
+            distance = max(0.1, tolerance)
     except Exception:
-        distance = 0.1
+        distance = max(0.1, tolerance)
     return [[v.x, v.y] for v in p.flattening(distance, segments=max(segments, 4))]
 
 
@@ -246,6 +257,11 @@ class DXFParser:
         if profile is not None and config is None:
             self.config = ParserConfig(layer_conventions=profile.as_conventions())
         self.profile = profile
+        # Layer-name -> canonical type is pure given the (fixed) conventions, but
+        # is evaluated once per entity. INSERT-heavy files explode into tens of
+        # thousands of sub-entities that reuse a handful of layer names, so we
+        # memoise the lookup per parser instance.
+        self._layer_type_cache: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -448,7 +464,10 @@ class DXFParser:
         handle = getattr(entity.dxf, "handle", None) or "noh"
         eid = f"ent-{handle}{id_suffix}"
         layer = entity.dxf.layer if hasattr(entity.dxf, "layer") else "0"
-        layer_type = _infer_layer_type(layer, self.config.layer_conventions)
+        layer_type = self._layer_type_cache.get(layer)
+        if layer_type is None:
+            layer_type = _infer_layer_type(layer, self.config.layer_conventions)
+            self._layer_type_cache[layer] = layer_type
         elevation_z = _entity_elevation_z(entity)
 
         try:
@@ -610,7 +629,10 @@ class DXFParser:
         if _has_bulge(entity):
             # Bulges encode arc segments — flatten via ezdxf.path so we keep
             # the true curved geometry instead of chording across the arc.
-            pts = _flatten_path(entity, self.config.spline_approximation_segments)
+            pts = _flatten_path(
+                entity, self.config.spline_approximation_segments,
+                self.config.curve_flattening_tolerance_mm,
+            )
             approximated = True
         else:
             pts = [[p[0], p[1]] for p in entity.get_points(format="xy")]
@@ -640,7 +662,8 @@ class DXFParser:
                 abs(getattr(v.dxf, "bulge", 0.0)) > 1e-9 for v in entity.vertices
             ):
                 pts = _flatten_path(
-                    entity, self.config.spline_approximation_segments
+                    entity, self.config.spline_approximation_segments,
+                    self.config.curve_flattening_tolerance_mm,
                 )
                 approximated = True
             else:
@@ -668,9 +691,13 @@ class DXFParser:
 
     def _spline(self, entity, eid, handle, layer, layer_type, units_from,
                 warnings) -> list[RawEntity]:
-        # Approximate SPLINE as a polyline (P2; ~N segments per spec).
+        # Approximate SPLINE as a polyline (P2; ~N segments per spec). The
+        # chord tolerance bounds the approximation error; a fixed ultra-fine
+        # 0.01mm makes large splines explode into tens of thousands of points
+        # for no manufacturing-relevant gain.
         n = self.config.spline_approximation_segments
-        pts = [[v.x, v.y] for v in entity.flattening(0.01, segments=max(n, 4))]
+        tol = self.config.curve_flattening_tolerance_mm
+        pts = [[v.x, v.y] for v in entity.flattening(tol, segments=max(n, 4))]
         if len(pts) < 2:
             ctrl = list(entity.control_points)
             pts = [[p.x, p.y] for p in ctrl] if len(ctrl) >= 2 else pts
@@ -695,7 +722,10 @@ class DXFParser:
                  warnings) -> list[RawEntity]:
         # Approximate ELLIPSE as a polyline (never crash — skip-with-warning
         # only if it genuinely yields no usable geometry).
-        pts = _flatten_path(entity, self.config.spline_approximation_segments)
+        pts = _flatten_path(
+            entity, self.config.spline_approximation_segments,
+            self.config.curve_flattening_tolerance_mm,
+        )
         pts = _scale_pts(pts, units_from)
         if len(pts) < 2:
             warnings.append(ParseWarning(

@@ -141,6 +141,43 @@ def test_circle_area_perimeter_exact_closed_form(tmp_path):
     assert circ.centroid == [100.0, 100.0]
 
 
+def test_parse_is_deterministic(tmp_path):
+    """Parser output is byte-reproducible (an explicit project guarantee):
+    parsing the same file twice yields identical entity ids, coordinates,
+    derived geometry, and warnings. Guards the hot-path optimizations
+    (memoised layer lookup, closed-form geometry) against introducing any
+    order- or state-dependent output."""
+    doc = _new_doc()
+    msp = doc.modelspace()
+    msp.add_lwpolyline(
+        [(0, 0), (300, 0), (300, 200), (0, 200)],
+        close=True, dxfattribs={"layer": "CUT"},
+    )
+    msp.add_circle((150, 100), radius=4, dxfattribs={"layer": "DRILL"})
+    msp.add_spline(
+        [(10, 10), (60, 80), (120, 20), (180, 90)],
+        dxfattribs={"layer": "ENGRAVE"},
+    )
+    msp.add_ellipse(
+        center=(200, 150), major_axis=(20, 0), ratio=0.5,
+        dxfattribs={"layer": "POCKET"},
+    )
+    path = _save(doc, tmp_path)
+
+    g1 = _parse_ok(path)
+    g2 = _parse_ok(path)
+    assert [e.entity_id for e in g1.entities] == [e.entity_id for e in g2.entities]
+    assert [e.entity_type for e in g1.entities] == \
+        [e.entity_type for e in g2.entities]
+    assert [e.coordinates for e in g1.entities] == \
+        [e.coordinates for e in g2.entities]
+    assert [e.area_mm2 for e in g1.entities] == [e.area_mm2 for e in g2.entities]
+    assert [e.perimeter_mm for e in g1.entities] == \
+        [e.perimeter_mm for e in g2.entities]
+    assert [e.centroid for e in g1.entities] == [e.centroid for e in g2.entities]
+    assert _warn_codes(g1) == _warn_codes(g2)
+
+
 # ---------------------------------------------------------------------------
 # Case 2: Legacy POLYLINE (not LWPOLYLINE)
 # ---------------------------------------------------------------------------

@@ -39,7 +39,8 @@ def _entity_centroid(ent: RawEntity) -> tuple[float, float] | None:
 
 def split_raw_geometry_by_panels(
     raw: RawGeometry,
-    sheet_keywords: tuple[str, ...] = ("SHEET", "STOCK", "MATERIAL", "BLANK", "NEST"),
+    sheet_keywords: tuple[str, ...] = ("SHEET", "STOCK", "MATERIAL", "BLANK",
+                                       "NEST", "PLATE"),
     min_panel_area_fraction: float = 0.05,
 ) -> list[RawGeometry]:
     """Split *raw* into one RawGeometry per detected panel.
@@ -97,7 +98,11 @@ def split_raw_geometry_by_panels(
         if not inside_other:
             panels.append((e, p))
 
-    if len(panels) < 2:
+    # A nest needs either >=2 distinct panels, OR a positively-identified stock
+    # sheet carrying at least one part. A single part nested on stock is still a
+    # nest: the stock contour must be dropped, otherwise the part outline is
+    # mistaken for an internal cutout and the stock for the panel boundary.
+    if not panels or (len(panels) < 2 and sheet_ent is None):
         return [raw]
 
     # Assign every non-panel-boundary entity to the panel whose polygon contains

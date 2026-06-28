@@ -407,6 +407,29 @@ mark layer and cut at a small fixed depth."
       depth_mm: "0.2-2.0"
       tolerance_mm: 0.1
 
+  - id: CORNER_RELIEF
+    label: "Corner Relief"
+    category: MILLED_FEATURES
+    description: "Inside-corner relief (dogbone / T-bone) — a small circular or \
+slotted overcut at a milled inside corner so a square mating tongue can seat. \
+Part of a pocket/slot, not a drilled hole; typically grouped on a relief/dogbone \
+layer and cut at the parent feature's depth."
+    detection:
+      geometry_type: circle
+      layer_keywords: ["RELIEF", "DOGBONE", "TBONE"]
+      small_radius: true
+    confidence:
+      single_hole: 0.75
+      confirmed_pattern: 0.85
+    inference_method: "heuristic_layer_convention"
+    sources:
+      - "Joinery practice: inside-corner relief for square tongues"
+    operation: CNC_ROUTING
+    parameters:
+      radius_mm: null
+      depth_mm: null
+      tolerance_mm: 0.1
+
   # =========================================================================
   # SPECIAL
   # =========================================================================

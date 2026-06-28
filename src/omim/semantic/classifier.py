@@ -70,6 +70,7 @@ FEATURE_TO_OPERATIONS: dict[str, list[str]] = {
     "OPEN_SLOT": ["CNC_ROUTING"],
     "DADO": ["CNC_ROUTING"],
     "ENGRAVING": ["CNC_ROUTING"],
+    "CORNER_RELIEF": ["CNC_ROUTING"],
     "PROFILE_CUT": ["PROFILE_CUTTING"],
     "INTERNAL_CUTOUT": ["PROFILE_CUTTING"],
 }
@@ -95,6 +96,7 @@ FEATURE_CATEGORIES: dict[str, str] = {
     "RABBET": "MILLED_FEATURES",
     "OPEN_SLOT": "MILLED_FEATURES",
     "ENGRAVING": "MILLED_FEATURES",
+    "CORNER_RELIEF": "MILLED_FEATURES",
     "PROFILE_CUT": "PROFILE_FEATURES",
     "INTERNAL_CUTOUT": "PROFILE_FEATURES",
     "CHAMFER": "PROFILE_FEATURES",
@@ -315,6 +317,58 @@ class FeatureClassifier:
 
         # Compute edge distance if panel boundary available
         edge_distance = self._compute_edge_distance(data, mgg)
+
+        # ---------------------------------------------------------------
+        # Priority 0: layer-intent guards for circles. A circle's manufacturing
+        # role is sometimes fixed by its layer, overriding the geometric
+        # "circle => hole" default.
+        # ---------------------------------------------------------------
+        if geom_type == "circle":
+            # (a) Corner-relief dogbone: a circle on a relief/dogbone layer is the
+            # inside-corner relief that lets a square tongue seat
+            # (02_joints_and_slots), NOT a drilled hole. Counting it as a hole
+            # inflates the hole tally with phantom dowels.
+            if any(_layer_contains(layer, k)
+                   for k in ("RELIEF", "DOGBONE", "TBONE")):
+                ceiling = SEMANTIC_CONFIDENCE_CEILINGS["shop_convention"]
+                return self._make_annotation(
+                    node_id=node_id,
+                    feature_class="CORNER_RELIEF",
+                    confidence=ceiling,
+                    evidence=[
+                        {"type": "layer_role", "layer": layer, "role": "relief"},
+                        {"type": "entity_type", "entity_type": "CIRCLE"},
+                    ],
+                    inference_method="shop_convention",
+                    rule="P0a: circle on a relief/dogbone layer",
+                )
+            # (b) A wide circle on a profile/cut layer (not a drill layer) is a
+            # milled round cutout, not a drilled hole: beyond the drillable window
+            # a bore is routed, not plunged (03_nesting_and_operations).
+            if (
+                inferred_layer_type == "cut"
+                and diameter is not None
+                and diameter >= THROUGH_HOLE_MAX_MM
+            ):
+                ceiling = SEMANTIC_CONFIDENCE_CEILINGS["shop_convention"]
+                return self._make_annotation(
+                    node_id=node_id,
+                    feature_class="INTERNAL_CUTOUT",
+                    confidence=ceiling,
+                    evidence=[
+                        {"type": "layer_match", "layer": layer,
+                         "inferred_type": "cut"},
+                        {"type": "diameter_mm", "diameter_mm": diameter,
+                         "drill_window_max_mm": THROUGH_HOLE_MAX_MM},
+                    ],
+                    inference_method="shop_convention",
+                    rule="P0b: wide circle on a cut layer (milled round cutout)",
+                    alternatives=[AlternativeHypothesis(
+                        feature_class="HARDWARE_HOLE",
+                        confidence=0.40,
+                        reason=f"a {diameter:.0f}mm bore could be a bored hardware hole",
+                    )],
+                )
 
         # ---------------------------------------------------------------
         # Priority 1: diameter == 35mm +/- 1mm AND layer contains "HINGE"
